@@ -429,6 +429,7 @@ public class NetworkClient implements KafkaClient {
         // if no response is expected then when the send is completed, return it
         for (Send send : this.selector.completedSends()) {
             ClientRequest request = this.inFlightRequests.lastSent(send.destination());
+            //如果预期没有响应，则认为请求已完成。跟acks相关
             if (!request.expectResponse()) {
                 this.inFlightRequests.completeLastSent(send.destination());
                 responses.add(new ClientResponse(request, now, false, null));

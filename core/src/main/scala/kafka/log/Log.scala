@@ -382,7 +382,7 @@ class Log(val dir: File,
         // maybe roll the log if this segment is full
         val segment = maybeRoll(validMessages.sizeInBytes)
 
-        // now append to the log
+        // now append to the log 追加消息到segment
         segment.append(appendInfo.firstOffset, validMessages)
 
         // increment the log end offset
@@ -390,7 +390,7 @@ class Log(val dir: File,
 
         trace("Appended message set to log %s with first offset: %d, next offset: %d, and messages: %s"
           .format(this.name, appendInfo.firstOffset, nextOffsetMetadata.messageOffset, validMessages))
-
+        //每写入10000条数据，刷盘到磁盘
         if (unflushedMessages >= config.flushInterval)
           flush()
 

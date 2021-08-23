@@ -507,15 +507,16 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
 
     /**
      * Wait for cluster metadata including partitions for the given topic to be available.
+     * 等待集群元数据（包括给定主题的分区）可用
      * @param topic The topic we want metadata for
      * @param maxWaitMs The maximum time in ms for waiting on the metadata
      * @return The amount of time we waited in ms
      */
     private long waitOnMetadata(String topic, long maxWaitMs) throws InterruptedException {
-        // add topic to metadata topic list if it is not there already.
+        // add topic to metadata topic list if it is not there already.将主题添加到元数据主题列表中（如果尚不存在）。
         if (!this.metadata.containsTopic(topic))
             this.metadata.add(topic);
-
+        //如果已经存在，直接返回
         if (metadata.fetch().partitionsForTopic(topic) != null)
             return 0;
 
@@ -706,6 +707,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
      * computes partition for given record.
      * if the record has partition returns the value otherwise
      * calls configured partitioner class to compute the partition.
+     * 计算给定记录的分区。 如果记录有分区，则返回该值，否则调用配置的分区程序类来计算分区。
      */
     private int partition(ProducerRecord<K, V> record, byte[] serializedKey , byte[] serializedValue, Cluster cluster) {
         Integer partition = record.partition();

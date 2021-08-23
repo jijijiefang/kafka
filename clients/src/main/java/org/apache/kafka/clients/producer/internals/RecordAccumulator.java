@@ -51,6 +51,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * This class acts as a queue that accumulates records into {@link org.apache.kafka.common.record.MemoryRecords}
  * instances to be sent to the server.
+ * 此类充当将记录累积到MemoryRecords实例中以发送到服务器的队列。
  * <p>
  * The accumulator uses a bounded amount of memory and append calls will block when that memory is exhausted, unless
  * this behavior is explicitly disabled.
@@ -144,6 +145,7 @@ public final class RecordAccumulator {
 
     /**
      * Add a record to the accumulator, return the append result
+     * 向累加器添加一条记录，返回追加结果
      * <p>
      * The append result will contain the future metadata, and flag for whether the appended batch is full or a new batch is created
      * <p>
@@ -178,6 +180,7 @@ public final class RecordAccumulator {
             // we don't have an in-progress record batch try to allocate a new batch
             int size = Math.max(this.batchSize, Records.LOG_OVERHEAD + Record.recordSize(key, value));
             log.trace("Allocating a new {} byte message buffer for topic {} partition {}", size, tp.topic(), tp.partition());
+            //在空闲列表里分配缓冲区
             ByteBuffer buffer = free.allocate(size, maxTimeToBlock);
             synchronized (dq) {
                 // Need to check if producer is closed again after grabbing the dequeue lock.
@@ -279,6 +282,7 @@ public final class RecordAccumulator {
      * Get a list of nodes whose partitions are ready to be sent, and the earliest time at which any non-sendable
      * partition will be ready; Also return the flag for whether there are any unknown leaders for the accumulated
      * partition batches.
+     *
      * <p>
      * A destination node is ready to send data if:
      * <ol>
@@ -300,7 +304,7 @@ public final class RecordAccumulator {
         Set<Node> readyNodes = new HashSet<>();
         long nextReadyCheckDelayMs = Long.MAX_VALUE;
         boolean unknownLeadersExist = false;
-
+        //内存耗尽，有人正在等待申请内存
         boolean exhausted = this.free.queued() > 0;
         for (Map.Entry<TopicPartition, Deque<RecordBatch>> entry : this.batches.entrySet()) {
             TopicPartition part = entry.getKey();
@@ -313,12 +317,18 @@ public final class RecordAccumulator {
                 synchronized (deque) {
                     RecordBatch batch = deque.peekFirst();
                     if (batch != null) {
+                        //重试相关，batch.attempts > 0说明是重试
                         boolean backingOff = batch.attempts > 0 && batch.lastAttemptMs + retryBackoffMs > nowMs;
                         long waitedTimeMs = nowMs - batch.lastAttemptMs;
+                        //根据是否重试来判断，重试间隔时间或发送最大延迟时间
                         long timeToWaitMs = backingOff ? retryBackoffMs : lingerMs;
+                        //剩余时间=超时时间-已等待时间
                         long timeLeftMs = Math.max(timeToWaitMs - waitedTimeMs, 0);
+                        //batch是否已满
                         boolean full = deque.size() > 1 || batch.records.isFull();
+                        //当前已经等待时间是否大于最大等待时间
                         boolean expired = waitedTimeMs >= timeToWaitMs;
+                        //发送条件是否满足
                         boolean sendable = full || expired || exhausted || closed || flushInProgress();
                         if (sendable && !backingOff) {
                             readyNodes.add(leader);
@@ -326,6 +336,7 @@ public final class RecordAccumulator {
                             // Note that this results in a conservative estimate since an un-sendable partition may have
                             // a leader that will later be found to have sendable data. However, this is good enough
                             // since we'll just wake up and then sleep again for the remaining time.
+                            //下次等待时间=剩余时间和下次等待时间的最小值
                             nextReadyCheckDelayMs = Math.min(timeLeftMs, nextReadyCheckDelayMs);
                         }
                     }

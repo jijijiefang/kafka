@@ -53,6 +53,7 @@ import org.slf4j.LoggerFactory;
 /**
  * The background thread that handles the sending of produce requests to the Kafka cluster. This thread makes metadata
  * requests to renew its view of the cluster and then sends produce requests to the appropriate nodes.
+ * 处理向 Kafka 集群发送生产请求的后台线程。 该线程发出元数据请求以更新其集群视图，然后将生产请求发送到适当的节点。
  */
 public class Sender implements Runnable {
 
@@ -171,14 +172,15 @@ public class Sender implements Runnable {
      */
     void run(long now) {
         Cluster cluster = metadata.fetch();
-        // get the list of partitions with data ready to send
+        // get the list of partitions with data ready to send 获取准备发送数据的分区列表
         RecordAccumulator.ReadyCheckResult result = this.accumulator.ready(cluster, now);
 
         // if there are any partitions whose leaders are not known yet, force metadata update
+        // 如果有任何领导者未知的分区，强制元数据更新
         if (result.unknownLeadersExist)
             this.metadata.requestUpdate();
 
-        // remove any nodes we aren't ready to send to
+        // remove any nodes we aren't ready to send to 删除我们还没有准备好发送到的任何节点
         Iterator<Node> iter = result.readyNodes.iterator();
         long notReadyTimeout = Long.MAX_VALUE;
         while (iter.hasNext()) {
@@ -189,7 +191,7 @@ public class Sender implements Runnable {
             }
         }
 
-        // create produce requests
+        // create produce requests 创建生产请求
         Map<Integer, List<RecordBatch>> batches = this.accumulator.drain(cluster,
                                                                          result.readyNodes,
                                                                          this.maxRequestSize,
@@ -231,6 +233,7 @@ public class Sender implements Runnable {
 
     /**
      * Start closing the sender (won't actually complete until all data is sent out)
+     * 开始关闭发送器（直到所有数据都发送出去才会真正完成）
      */
     public void initiateClose() {
         this.running = false;

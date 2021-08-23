@@ -52,6 +52,12 @@ public class ByteBufferSend implements Send {
         return this.size;
     }
 
+    /**
+     * 使用SocketChannel写数据
+     * @param channel The Channel to write to
+     * @return 写入数据长度
+     * @throws IOException IO异常
+     */
     @Override
     public long writeTo(GatheringByteChannel channel) throws IOException {
         long written = channel.write(buffers);

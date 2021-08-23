@@ -24,6 +24,7 @@ import org.apache.kafka.common.utils.AbstractIterator;
 
 /**
  * A {@link Records} implementation backed by a ByteBuffer.
+ * 由 ByteBuffer 支持的Records实现
  */
 public class MemoryRecords implements Records {
 
@@ -88,6 +89,7 @@ public class MemoryRecords implements Records {
 
     /**
      * Append a new record and offset to the buffer
+     * 将新记录和偏移量追加到缓冲区
      * @return crc of the record
      */
     public long append(long offset, long timestamp, byte[] key, byte[] value) {

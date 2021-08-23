@@ -95,6 +95,7 @@ class SocketServer(val config: KafkaConfig, val metrics: Metrics, val time: Time
         val acceptor = new Acceptor(endpoint, sendBufferSize, recvBufferSize, brokerId,
           processors.slice(processorBeginIndex, processorEndIndex), connectionQuotas)
         acceptors.put(endpoint, acceptor)
+
         Utils.newThread("kafka-socket-acceptor-%s-%d".format(protocol.toString, endpoint.port), acceptor, false).start()
         acceptor.awaitStartup()
 
@@ -539,6 +540,7 @@ private[kafka] class Processor(val id: Int,
         val remoteHost = channel.socket().getInetAddress.getHostAddress
         val remotePort = channel.socket().getPort
         val connectionId = ConnectionId(localHost, localPort, remoteHost, remotePort).toString
+        //注册SocketChannel到Selector，注册OP_READ事件
         selector.register(connectionId, channel)
       } catch {
         // We explicitly catch all non fatal exceptions and close the socket to avoid a socket leak. The other

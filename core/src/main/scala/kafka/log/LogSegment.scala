@@ -78,6 +78,7 @@ class LogSegment(val log: FileMessageSet,
     if (messages.sizeInBytes > 0) {
       trace("Inserting %d bytes at offset %d at position %d".format(messages.sizeInBytes, offset, log.sizeInBytes()))
       // append an entry to the index (if needed)
+      //在.log文件中每写入4096的数据，则在.index文件中写入一条稀疏索引
       if(bytesSinceLastIndexEntry > indexIntervalBytes) {
         index.append(offset, log.sizeInBytes())
         this.bytesSinceLastIndexEntry = 0

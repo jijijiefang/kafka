@@ -294,6 +294,7 @@ class FileMessageSet private[kafka](@volatile var file: File,
    * Append these messages to the message set
    */
   def append(messages: ByteBufferMessageSet) {
+    //channel对应.log磁盘文件的mmap的FileChannel
     val written = messages.writeFullyTo(channel)
     _size.getAndAdd(written)
   }

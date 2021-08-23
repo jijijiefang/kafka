@@ -423,16 +423,23 @@ class Partition(val topic: String,
     laggingReplicas
   }
 
+  /**
+   *
+   * @param messages
+   * @param requiredAcks
+   * @return
+   */
   def appendMessagesToLeader(messages: ByteBufferMessageSet, requiredAcks: Int = 0) = {
     val (info, leaderHWIncremented) = inReadLock(leaderIsrUpdateLock) {
       val leaderReplicaOpt = leaderReplicaIfLocal()
       leaderReplicaOpt match {
+        //判断当前Partition是否是Leader
         case Some(leaderReplica) =>
           val log = leaderReplica.log.get
           val minIsr = log.config.minInSyncReplicas
           val inSyncSize = inSyncReplicas.size
 
-          // Avoid writing to leader if there are not enough insync replicas to make it safe
+          // Avoid writing to leader if there are not enough insync replicas to make it safe 如果没有足够的同步副本来确保安全，请避免写入领导者
           if (inSyncSize < minIsr && requiredAcks == -1) {
             throw new NotEnoughReplicasException("Number of insync replicas for partition [%s,%d] is [%d], below required minimum [%d]"
               .format(topic, partitionId, inSyncSize, minIsr))

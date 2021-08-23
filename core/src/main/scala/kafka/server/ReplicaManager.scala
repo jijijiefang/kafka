@@ -328,6 +328,7 @@ class ReplicaManager(val config: KafkaConfig,
 
     if (isValidRequiredAcks(requiredAcks)) {
       val sTime = SystemTime.milliseconds
+      //追加消息至本地文件
       val localProduceResults = appendToLocalLog(internalTopicsAllowed, messagesPerPartition, requiredAcks)
       debug("Produce to local log in %d ms".format(SystemTime.milliseconds - sTime))
 
@@ -406,6 +407,7 @@ class ReplicaManager(val config: KafkaConfig,
           val partitionOpt = getPartition(topicPartition.topic, topicPartition.partition)
           val info = partitionOpt match {
             case Some(partition) =>
+              //调用partition的appendMessagesToLeader,batch数据写入磁盘
               partition.appendMessagesToLeader(messages.asInstanceOf[ByteBufferMessageSet], requiredAcks)
             case None => throw new UnknownTopicOrPartitionException("Partition %s doesn't exist on %d"
               .format(topicPartition, localBrokerId))

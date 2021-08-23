@@ -75,17 +75,17 @@ public final class Metadata {
     }
 
     /**
-     * Get the current cluster info without blocking
-     */
-    public synchronized Cluster fetch() {
-        return this.cluster;
-    }
-
-    /**
      * Add the topic to maintain in the metadata
      */
     public synchronized void add(String topic) {
         topics.add(topic);
+    }
+
+    /**
+     * Get the current cluster info without blocking
+     */
+    public synchronized Cluster fetch() {
+        return this.cluster;
     }
 
     /**

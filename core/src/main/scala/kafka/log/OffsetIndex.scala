@@ -207,8 +207,11 @@ class OffsetIndex(@volatile private[this] var _file: File, val baseOffset: Long,
       require(!isFull, "Attempt to append to a full index (size = " + _entries + ").")
       if (_entries == 0 || offset > _lastOffset) {
         debug("Adding index entry %d => %d to %s.".format(offset, position, _file.getName))
+        //offset是物理偏移量，baseOffset是当前文件起始物理偏移量
         mmap.putInt((offset - baseOffset).toInt)
+        //.log文件占用byte数
         mmap.putInt(position)
+        //条目数量+1
         _entries += 1
         _lastOffset = offset
         require(_entries * 8 == mmap.position, _entries + " entries but file position in index is " + mmap.position + ".")

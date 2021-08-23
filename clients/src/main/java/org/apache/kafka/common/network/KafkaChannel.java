@@ -141,6 +141,11 @@ public class KafkaChannel {
         return result;
     }
 
+    /**
+     * 发送数据
+     * @return 发送结果
+     * @throws IOException IO异常
+     */
     public Send write() throws IOException {
         Send result = null;
         if (send != null && send(send)) {
@@ -154,6 +159,12 @@ public class KafkaChannel {
         return receive.readFrom(transportLayer);
     }
 
+    /**
+     * 发送数据
+     * @param send 字节发送缓冲区
+     * @return 是否写完
+     * @throws IOException IO异常
+     */
     private boolean send(Send send) throws IOException {
         send.writeTo(transportLayer);
         if (send.completed())

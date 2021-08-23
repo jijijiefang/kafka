@@ -35,11 +35,14 @@ final class ClusterConnectionStates {
      * @param now The current time in MS
      * @return true if we can initiate a new connection
      */
+    //是否可以建立连接
     public boolean canConnect(String id, long now) {
         NodeConnectionState state = nodeState.get(id);
+        //从来没有建立过连接
         if (state == null)
             return true;
         else
+            //连接断开且断开连接时间大于连接重试间隔时间
             return state.state == ConnectionState.DISCONNECTED && now - state.lastConnectAttemptMs >= this.reconnectBackoffMs;
     }
 

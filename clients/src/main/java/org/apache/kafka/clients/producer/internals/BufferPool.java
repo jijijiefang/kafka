@@ -34,11 +34,14 @@ import org.apache.kafka.common.utils.Time;
 /**
  * A pool of ByteBuffers kept under a given memory limit. This class is fairly specific to the needs of the producer. In
  * particular it has the following properties:
+ * 保持在给定内存限制下的 ByteBuffer 池。 这个类是相当特定于生产者的需要的。 特别是它具有以下特性：
  * <ol>
  * <li>There is a special "poolable size" and buffers of this size are kept in a free list and recycled
+ * 有一个特殊的“可池大小”，这个大小的缓冲区被保存在一个空闲列表中并被回收
  * <li>It is fair. That is all memory is given to the longest waiting thread until it has sufficient memory. This
  * prevents starvation or deadlock when a thread asks for a large chunk of memory and needs to block until multiple
  * buffers are deallocated.
+ * 它是公平的。 也就是说，所有内存都分配给最长的等待线程，直到它有足够的内存。 当线程请求大块内存并需要阻塞直到释放多个缓冲区时，这可以防止饥饿或死锁。
  * </ol>
  */
 public final class BufferPool {
@@ -81,7 +84,7 @@ public final class BufferPool {
     /**
      * Allocate a buffer of the given size. This method blocks if there is not enough memory and the buffer pool
      * is configured with blocking mode.
-     * 
+     * 分配给定大小的缓冲区。 如果没有足够的内存并且缓冲池配置了阻塞模式，则此方法会阻塞。
      * @param size The buffer size to allocate in bytes
      * @param maxTimeToBlockMs The maximum time in milliseconds to block for buffer memory to be available
      * @return The buffer
