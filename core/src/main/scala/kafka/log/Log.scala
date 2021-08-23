@@ -502,6 +502,7 @@ class Log(val dir: File,
     if(startOffset == next)
       return FetchDataInfo(currentNextOffsetMetadata, MessageSet.Empty)
 
+    //根据offset查找文件segment
     var entry = segments.floorEntry(startOffset)
 
     // attempt to read beyond the log end offset is an error

@@ -126,6 +126,7 @@ class ReplicaFetcherThread(name: String,
       if (logger.isTraceEnabled)
         trace("Follower %d has replica log end offset %d after appending %d bytes of messages for partition %s"
           .format(replica.brokerId, replica.logEndOffset.messageOffset, messageSet.sizeInBytes, topicAndPartition))
+          //follow的HW = leader的HW和自己的LEO取小值
       val followerHighWatermark = replica.logEndOffset.messageOffset.min(partitionData.highWatermark)
       // for the follower replica, we do not need to keep
       // its segment base offset the physical position,
@@ -225,6 +226,11 @@ class ReplicaFetcherThread(name: String,
     delayPartitions(partitions, brokerConfig.replicaFetchBackoffMs.toLong)
   }
 
+  /**
+   * 拉取操作
+   * @param fetchRequest 拉取请求
+   * @return
+   */
   protected def fetch(fetchRequest: FetchRequest): Map[TopicAndPartition, PartitionData] = {
     val clientResponse = sendRequest(ApiKeys.FETCH, Some(fetchRequestVersion), fetchRequest.underlying)
     new FetchResponse(clientResponse.responseBody).responseData.asScala.map { case (key, value) =>
@@ -232,6 +238,13 @@ class ReplicaFetcherThread(name: String,
     }
   }
 
+  /**
+   * 发送拉取请求
+   * @param apiKey
+   * @param apiVersion
+   * @param request
+   * @return
+   */
   private def sendRequest(apiKey: ApiKeys, apiVersion: Option[Short], request: AbstractRequest): ClientResponse = {
     import kafka.utils.NetworkClientBlockingOps._
     val header = apiVersion.fold(networkClient.nextRequestHeader(apiKey))(networkClient.nextRequestHeader(apiKey, _))
@@ -267,12 +280,19 @@ class ReplicaFetcherThread(name: String,
     }
   }
 
+  /**
+   * 构建拉取请求
+   * @param partitionMap 分区Map
+   * @return
+   */
   protected def buildFetchRequest(partitionMap: Map[TopicAndPartition, PartitionFetchState]): FetchRequest = {
     val requestMap = mutable.Map.empty[TopicPartition, JFetchRequest.PartitionData]
 
     partitionMap.foreach { case ((TopicAndPartition(topic, partition), partitionFetchState)) =>
-      if (partitionFetchState.isActive)
+      if (partitionFetchState.isActive) {
+        //fetchSize拉取的数据量是多大默认1m
         requestMap(new TopicPartition(topic, partition)) = new JFetchRequest.PartitionData(partitionFetchState.offset, fetchSize)
+      }
     }
 
     new FetchRequest(new JFetchRequest(replicaId, maxWait, minBytes, requestMap.asJava))
