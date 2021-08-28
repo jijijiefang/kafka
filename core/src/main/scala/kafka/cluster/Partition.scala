@@ -276,13 +276,14 @@ class Partition(val topic: String,
             info("Expanding ISR for partition [%s,%d] from %s to %s"
                          .format(topic, partitionId, inSyncReplicas.map(_.brokerId).mkString(","),
                                  newInSyncReplicas.map(_.brokerId).mkString(",")))
-            // update ISR in ZK and cache
+            // update ISR in ZK and cache 更新ISR列表
             updateIsr(newInSyncReplicas)
             replicaManager.isrExpandRate.mark()
           }
 
           // check if the HW of the partition can now be incremented
           // since the replica maybe now be in the ISR and its LEO has just incremented
+          //更新HW
           maybeIncrementLeaderHW(leaderReplica)
 
         case None => false // nothing to do if no longer leader
@@ -342,14 +343,15 @@ class Partition(val topic: String,
    * Check and maybe increment the high watermark of the partition;
    * this function can be triggered when
    *
-   * 1. Partition ISR changed
-   * 2. Any replica's LEO changed
+   * 1. Partition ISR changed ISR列表变更
+   * 2. Any replica's LEO changed 某个副本的LEO变更
    *
    * Returns true if the HW was incremented, and false otherwise.
    * Note There is no need to acquire the leaderIsrUpdate lock here
    * since all callers of this private API acquire that lock
    */
   private def maybeIncrementLeaderHW(leaderReplica: Replica): Boolean = {
+    //获取ISR中所有副本的LEO
     val allLogEndOffsets = inSyncReplicas.map(_.logEndOffset)
     val newHighWatermark = allLogEndOffsets.min(new LogOffsetMetadata.OffsetOrdering)
     val oldHighWatermark = leaderReplica.highWatermark
@@ -465,6 +467,10 @@ class Partition(val topic: String,
     info
   }
 
+  /**
+   * 更新ISR列表
+   * @param newIsr
+   */
   private def updateIsr(newIsr: Set[Replica]) {
     val newLeaderAndIsr = new LeaderAndIsr(localBrokerId, leaderEpoch, newIsr.map(r => r.brokerId).toList, zkVersion)
     val (updateSucceeded,newVersion) = ReplicationUtils.updateLeaderAndIsr(zkUtils, topic, partitionId,
