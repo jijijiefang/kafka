@@ -36,6 +36,7 @@ import org.apache.zookeeper.Watcher.Event.KeeperState
  *   
  * Right now our definition of health is fairly naive. If we register in zk we are healthy, otherwise
  * we are dead.
+ * 这个类在zookeeper中注册broker以允许其他broker和消费者检测故障。 它使用具有以下路径的临时 znode：/brokers/ids/[0...N] -->advertisedHost:advertisedPort
  */
 class KafkaHealthcheck(brokerId: Int,
                        advertisedEndpoints: Map[SecurityProtocol, EndPoint],

@@ -58,6 +58,10 @@ class ZookeeperLeaderElector(controllerContext: ControllerContext,
     }
   }
 
+  /**
+   * 选举方法
+   * @return
+   */
   def elect: Boolean = {
     val timestamp = SystemTime.milliseconds.toString
     val electString = Json.encode(Map("version" -> 1, "brokerid" -> brokerId, "timestamp" -> timestamp))
@@ -74,13 +78,16 @@ class ZookeeperLeaderElector(controllerContext: ControllerContext,
     }
 
     try {
+      //去ZooKeeper的"/controller"路径下创建临时节点
       val zkCheckedEphemeral = new ZKCheckedEphemeral(electionPath,
                                                       electString,
                                                       controllerContext.zkUtils.zkConnection.getZookeeper,
                                                       JaasUtils.isZkSecurityEnabled())
+      //同一时间只有一个能创建成功
       zkCheckedEphemeral.create()
       info(brokerId + " successfully elected as leader")
       leaderId = brokerId
+      //将自己变为Leader
       onBecomingLeader()
     } catch {
       case e: ZkNodeExistsException =>
@@ -143,6 +150,7 @@ class ZookeeperLeaderElector(controllerContext: ControllerContext,
           .format(brokerId, dataPath))
         if(amILeader)
           onResigningAsLeader()
+        //Znode被删掉以后，重新选举
         elect
       }
     }
