@@ -12,9 +12,6 @@
  */
 package org.apache.kafka.clients.producer.internals;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
@@ -23,6 +20,9 @@ import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A batch of records that is or will be sent.
@@ -60,7 +60,7 @@ public final class RecordBatch {
 
     /**
      * Append the record to the current record set and return the relative offset within that record set
-     * 
+     * 将记录附加到当前记录集中，并返回该记录集中的相对偏移
      * @return The RecordSend corresponding to this record or null if there isn't sufficient room.
      */
     public FutureRecordMetadata tryAppend(long timestamp, byte[] key, byte[] value, Callback callback, long now) {

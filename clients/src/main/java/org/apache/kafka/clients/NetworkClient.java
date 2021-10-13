@@ -141,7 +141,7 @@ public class NetworkClient implements KafkaClient {
 
     /**
      * Begin connecting to the given node, return true if we are already connected and ready to send to that node.
-     *
+     * 开始连接到给定节点，如果已经连接并准备发送到该节点，则返回true
      * @param node The node to check
      * @param now The current timestamp
      * @return True if we are ready to send to the given node
@@ -246,7 +246,7 @@ public class NetworkClient implements KafkaClient {
 
     /**
      * Do actual reads and writes to sockets.
-     *
+     * 真正执行读取或写入操作
      * @param timeout The maximum amount of time to wait (in ms) for responses if there are none immediately,
      *                must be non-negative. The actual timeout will be the minimum of timeout, request timeout and
      *                metadata timeout

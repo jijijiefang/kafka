@@ -21,6 +21,7 @@ import java.util.Map;
 
 public class CollectionUtils {
     /**
+     * 按主题分组数据
      * group data by topic
      * @param data Data to be partitioned
      * @param <T> Partition data type

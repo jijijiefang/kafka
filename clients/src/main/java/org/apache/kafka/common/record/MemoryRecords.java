@@ -12,15 +12,15 @@
  */
 package org.apache.kafka.common.record;
 
+import org.apache.kafka.common.KafkaException;
+import org.apache.kafka.common.utils.AbstractIterator;
+
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Iterator;
-
-import org.apache.kafka.common.KafkaException;
-import org.apache.kafka.common.utils.AbstractIterator;
 
 /**
  * A {@link Records} implementation backed by a ByteBuffer.

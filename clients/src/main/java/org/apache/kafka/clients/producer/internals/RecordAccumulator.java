@@ -12,14 +12,8 @@
  */
 package org.apache.kafka.clients.producer.internals;
 
-import java.util.Iterator;
-
 import org.apache.kafka.clients.producer.Callback;
-import org.apache.kafka.common.Cluster;
-import org.apache.kafka.common.MetricName;
-import org.apache.kafka.common.Node;
-import org.apache.kafka.common.PartitionInfo;
-import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.*;
 import org.apache.kafka.common.metrics.Measurable;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
@@ -36,15 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -63,6 +49,7 @@ public final class RecordAccumulator {
     private volatile boolean closed;
     private final AtomicInteger flushesInProgress;
     private final AtomicInteger appendsInProgress;
+    //默认批次大小16384 16K
     private final int batchSize;
     private final CompressionType compression;
     private final long lingerMs;
@@ -78,8 +65,8 @@ public final class RecordAccumulator {
     /**
      * Create a new record accumulator
      * 
-     * @param batchSize The size to use when allocating {@link org.apache.kafka.common.record.MemoryRecords} instances
-     * @param totalSize The maximum memory the record accumulator can use.
+     * @param batchSize The size to use when allocating {@link org.apache.kafka.common.record.MemoryRecords} instances 默认16K
+     * @param totalSize The maximum memory the record accumulator can use. 默认32M
      * @param compression The compression codec for the records
      * @param lingerMs An artificial delay time to add before declaring a records instance that isn't full ready for
      *        sending. This allows time for more records to arrive. Setting a non-zero lingerMs will trade off some
@@ -172,12 +159,13 @@ public final class RecordAccumulator {
             synchronized (dq) {
                 if (closed)
                     throw new IllegalStateException("Cannot send after the producer is closed.");
+                //尝试将消息追加至待发送批次中
                 RecordAppendResult appendResult = tryAppend(timestamp, key, value, callback, dq);
                 if (appendResult != null)
                     return appendResult;
             }
 
-            // we don't have an in-progress record batch try to allocate a new batch
+            // we don't have an in-progress record batch try to allocate a new batch 没有进行中的批次，创建一个新的批次
             int size = Math.max(this.batchSize, Records.LOG_OVERHEAD + Record.recordSize(key, value));
             log.trace("Allocating a new {} byte message buffer for topic {} partition {}", size, tp.topic(), tp.partition());
             //在空闲列表里分配缓冲区
@@ -379,6 +367,7 @@ public final class RecordAccumulator {
             return Collections.emptyMap();
 
         Map<Integer, List<RecordBatch>> batches = new HashMap<>();
+        //
         for (Node node : nodes) {
             int size = 0;
             List<PartitionInfo> parts = cluster.partitionsForNode(node.id());
@@ -428,6 +417,7 @@ public final class RecordAccumulator {
 
     /**
      * Get the deque for the given topic-partition, creating it if necessary.
+     * 获取给定主题分区的deque，必要时创建它
      */
     private Deque<RecordBatch> getOrCreateDeque(TopicPartition tp) {
         Deque<RecordBatch> d = this.batches.get(tp);

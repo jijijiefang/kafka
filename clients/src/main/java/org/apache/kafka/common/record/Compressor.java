@@ -16,19 +16,18 @@
  */
 package org.apache.kafka.common.record;
 
-import java.lang.reflect.Constructor;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.utils.Utils;
 
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
+import java.lang.reflect.Constructor;
 import java.nio.ByteBuffer;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+/**
+ * 消息发送压缩器
+ */
 public class Compressor {
 
     static private final float COMPRESSION_RATE_DAMPING_FACTOR = 0.9f;
@@ -211,6 +210,7 @@ public class Compressor {
 
     /**
      * Put a record as uncompressed into the underlying stream
+     * 将未压缩的记录放入基础流
      * @return CRC of the record
      */
     public long putRecord(long timestamp, byte[] key, byte[] value) {

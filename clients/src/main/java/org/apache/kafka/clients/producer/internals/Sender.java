@@ -12,20 +12,9 @@
  */
 package org.apache.kafka.clients.producer.internals;
 
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.kafka.clients.ClientRequest;
-import org.apache.kafka.clients.ClientResponse;
-import org.apache.kafka.clients.KafkaClient;
-import org.apache.kafka.clients.Metadata;
-import org.apache.kafka.clients.RequestCompletionHandler;
+import org.apache.kafka.clients.*;
 import org.apache.kafka.common.Cluster;
+import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.InvalidMetadataException;
@@ -33,7 +22,6 @@ import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.TopicAuthorizationException;
 import org.apache.kafka.common.metrics.Measurable;
 import org.apache.kafka.common.metrics.MetricConfig;
-import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.Avg;
@@ -49,6 +37,9 @@ import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.nio.ByteBuffer;
+import java.util.*;
 
 /**
  * The background thread that handles the sending of produce requests to the Kafka cluster. This thread makes metadata
@@ -191,7 +182,7 @@ public class Sender implements Runnable {
             }
         }
 
-        // create produce requests 创建生产请求
+        // create produce requests 创建生产请求 整理成Broker节点:批次数据的格式
         Map<Integer, List<RecordBatch>> batches = this.accumulator.drain(cluster,
                                                                          result.readyNodes,
                                                                          this.maxRequestSize,
@@ -210,6 +201,7 @@ public class Sender implements Runnable {
             this.sensors.recordErrors(expiredBatch.topicPartition.topic(), expiredBatch.recordCount);
 
         sensors.updateProduceRequestMetrics(batches);
+        //创建消息发送请求对象集合
         List<ClientRequest> requests = createProduceRequests(batches, now);
         // If we have any nodes that are ready to send + have sendable data, poll with 0 timeout so this can immediately
         // loop and try sending more data. Otherwise, the timeout is determined by nodes that have partitions with data
@@ -222,6 +214,7 @@ public class Sender implements Runnable {
             pollTimeout = 0;
         }
         for (ClientRequest request : requests)
+            //设置发送请求
             client.send(request, now);
 
         // if some partitions are already ready to be sent, the select time would be 0;
@@ -333,6 +326,7 @@ public class Sender implements Runnable {
 
     /**
      * Transfer the record batches into a list of produce requests on a per-node basis
+     * 将记录批次转移到每个节点的生产请求列表中
      */
     private List<ClientRequest> createProduceRequests(Map<Integer, List<RecordBatch>> collated, long now) {
         List<ClientRequest> requests = new ArrayList<ClientRequest>(collated.size());
@@ -343,6 +337,7 @@ public class Sender implements Runnable {
 
     /**
      * Create a produce request from the given record batches
+     * 创建发送请求
      */
     private ClientRequest produceRequest(long now, int destination, short acks, int timeout, List<RecordBatch> batches) {
         Map<TopicPartition, ByteBuffer> produceRecordsByPartition = new HashMap<TopicPartition, ByteBuffer>(batches.size());

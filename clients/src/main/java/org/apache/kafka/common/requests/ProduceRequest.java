@@ -28,6 +28,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 消息发送请求
+ */
 public class ProduceRequest extends AbstractRequest {
     
     private static final Schema CURRENT_SCHEMA = ProtoUtils.currentRequestSchema(ApiKeys.PRODUCE.id);
@@ -53,10 +56,13 @@ public class ProduceRequest extends AbstractRequest {
         struct.set(ACKS_KEY_NAME, acks);
         struct.set(TIMEOUT_KEY_NAME, timeout);
         List<Struct> topicDatas = new ArrayList<Struct>(recordsByTopic.size());
+        //整理数据
         for (Map.Entry<String, Map<Integer, ByteBuffer>> entry : recordsByTopic.entrySet()) {
+            //主题对象
             Struct topicData = struct.instance(TOPIC_DATA_KEY_NAME);
             topicData.set(TOPIC_KEY_NAME, entry.getKey());
             List<Struct> partitionArray = new ArrayList<Struct>();
+            //整理主题分区数据
             for (Map.Entry<Integer, ByteBuffer> partitionEntry : entry.getValue().entrySet()) {
                 ByteBuffer buffer = partitionEntry.getValue().duplicate();
                 Struct part = topicData.instance(PARTITION_DATA_KEY_NAME)
