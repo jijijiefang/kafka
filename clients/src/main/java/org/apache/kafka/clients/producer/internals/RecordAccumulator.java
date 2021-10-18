@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * This class acts as a queue that accumulates records into {@link org.apache.kafka.common.record.MemoryRecords}
  * instances to be sent to the server.
  * 此类充当将记录累积到MemoryRecords实例中以发送到服务器的队列。
+ * RecordAccumulator 主要用来缓存消息以便 Sender 线程可以批量发送，进而减少网络传输的资源消耗以提升性能
  * <p>
  * The accumulator uses a bounded amount of memory and append calls will block when that memory is exhausted, unless
  * this behavior is explicitly disabled.
