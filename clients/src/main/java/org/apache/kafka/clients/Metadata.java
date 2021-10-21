@@ -36,11 +36,13 @@ import org.slf4j.LoggerFactory;
 public final class Metadata {
 
     private static final Logger log = LoggerFactory.getLogger(Metadata.class);
-
+    //再次刷新最小推迟毫秒数 默认100MS
     private final long refreshBackoffMs;
+    //元数据失效毫秒数 默认60分钟
     private final long metadataExpireMs;
     private int version;
     private long lastRefreshMs;
+    //最后一次元数据更新刷新时间
     private long lastSuccessfulRefreshMs;
     private Cluster cluster;
     private boolean needUpdate;
@@ -100,7 +102,7 @@ public final class Metadata {
     }
 
     /**
-     * Request an update of the current cluster metadata info, return the current version before the update
+     * Request an update of the current cluster metadata info, return the current version before the update 请求更新当前群集元数据信息，在更新之前返回当前版本
      */
     public synchronized int requestUpdate() {
         this.needUpdate = true;
