@@ -16,17 +16,18 @@
  */
 package org.apache.kafka.clients.producer.internals;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.kafka.clients.producer.Partitioner;
 import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.utils.Utils;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
+ * 默认分区器
  * The default partitioning strategy:
  * <ul>
  * <li>If a partition is specified in the record, use it
@@ -68,10 +69,12 @@ public class DefaultPartitioner implements Partitioner {
     public int partition(String topic, Object key, byte[] keyBytes, Object value, byte[] valueBytes, Cluster cluster) {
         List<PartitionInfo> partitions = cluster.partitionsForTopic(topic);
         int numPartitions = partitions.size();
+        //如果key为null，那么消息将会以轮询的方式发往主题内的各个可用分区
         if (keyBytes == null) {
             int nextValue = counter.getAndIncrement();
             List<PartitionInfo> availablePartitions = cluster.availablePartitionsForTopic(topic);
             if (availablePartitions.size() > 0) {
+                //如果 key为null，那么计算得到的分区号仅为"可用分区"中的任意一个
                 int part = DefaultPartitioner.toPositive(nextValue) % availablePartitions.size();
                 return availablePartitions.get(part).partition();
             } else {
@@ -79,7 +82,8 @@ public class DefaultPartitioner implements Partitioner {
                 return DefaultPartitioner.toPositive(nextValue) % numPartitions;
             }
         } else {
-            // hash the keyBytes to choose a partition
+            // hash the keyBytes to choose a partition 采用MurmurHash2算法，具备高运算性能及低碰撞率
+            //如果 key 不为 null，那么计算得到的分区号会是"所有分区"中的任意一个
             return DefaultPartitioner.toPositive(Utils.murmur2(keyBytes)) % numPartitions;
         }
     }

@@ -17,7 +17,7 @@
 package org.apache.kafka.common.protocol;
 
 /**
- * Identifiers for all the Kafka APIs
+ * Identifiers for all the Kafka APIs 所有Kafka API的标识符
  */
 public enum ApiKeys {
     PRODUCE(0, "Produce"),

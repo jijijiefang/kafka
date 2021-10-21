@@ -16,14 +16,15 @@
  */
 package org.apache.kafka.common.record;
 
-import java.nio.ByteBuffer;
-
 import org.apache.kafka.common.utils.Crc32;
 import org.apache.kafka.common.utils.Utils;
+
+import java.nio.ByteBuffer;
 
 
 /**
  * A record: a serialized key and value along with the associated CRC and other fields
+ * 记录：序列化的键和值以及相关的CRC和其他字段
  */
 public final class Record {
 
@@ -154,6 +155,17 @@ public final class Record {
         }
     }
 
+    /**
+     * 消息放入缓存
+     * @param compressor 压缩器
+     * @param crc crc
+     * @param attributes
+     * @param timestamp 时间戳
+     * @param key 消息key
+     * @param value 消息体
+     * @param valueOffset 消息偏移
+     * @param valueSize 消息长度
+     */
     public static void write(Compressor compressor, long crc, byte attributes, long timestamp, byte[] key, byte[] value, int valueOffset, int valueSize) {
         // write crc
         compressor.putInt((int) (crc & 0xffffffffL));

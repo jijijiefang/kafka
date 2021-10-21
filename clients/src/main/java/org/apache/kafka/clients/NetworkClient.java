@@ -59,7 +59,7 @@ public class NetworkClient implements KafkaClient {
     /* the state of each node's connection */
     private final ClusterConnectionStates connectionStates;
 
-    /* the set of requests currently being sent or awaiting a response */
+    /* the set of requests currently being sent or awaiting a response 当前正在发送或等待响应的请求集*/
     private final InFlightRequests inFlightRequests;
 
     /* the socket send buffer size in bytes */
@@ -226,7 +226,7 @@ public class NetworkClient implements KafkaClient {
 
     /**
      * Queue up the given request for sending. Requests can only be sent out to ready nodes.
-     *
+     * 将给定的发送请求排队,请求只能发送到就绪节点
      * @param request The request
      * @param now The current timestamp
      */
@@ -238,8 +238,14 @@ public class NetworkClient implements KafkaClient {
         doSend(request, now);
     }
 
+    /**
+     * 发送
+     * @param request 请求
+     * @param now 当前时间
+     */
     private void doSend(ClientRequest request, long now) {
         request.setSendTimeMs(now);
+        //已经发出去但还没有收到响应的请求
         this.inFlightRequests.add(request);
         selector.send(request.request());
     }
@@ -255,8 +261,10 @@ public class NetworkClient implements KafkaClient {
      */
     @Override
     public List<ClientResponse> poll(long timeout, long now) {
+        //如果需要，启动群集元数据更新
         long metadataTimeout = metadataUpdater.maybeUpdate(now);
         try {
+            //执行读、写、建立连接等操作
             this.selector.poll(Utils.min(timeout, metadataTimeout, requestTimeoutMs));
         } catch (IOException e) {
             log.error("Unexpected error during I/O", e);
@@ -265,13 +273,18 @@ public class NetworkClient implements KafkaClient {
         // process completed actions
         long updatedNow = this.time.milliseconds();
         List<ClientResponse> responses = new ArrayList<>();
+        //处理已完成的发送
         handleCompletedSends(responses, updatedNow);
+        //处理所有已完成的接收，并使用接收到的响应更新响应列表
         handleCompletedReceives(responses, updatedNow);
+        //处理任何断开的连接
         handleDisconnections(responses, updatedNow);
+        //记录所有新完成的连接
         handleConnections();
+        //处理超时的请求
         handleTimedOutRequests(responses, updatedNow);
 
-        // invoke callbacks
+        // invoke callbacks 处理回调
         for (ClientResponse response : responses) {
             if (response.request().hasCallback()) {
                 try {
@@ -401,7 +414,7 @@ public class NetworkClient implements KafkaClient {
     /**
      * Iterate over all the inflight requests and expire any requests that have exceeded the configured requestTimeout.
      * The connection to the node associated with the request will be terminated and will be treated as a disconnection.
-     *
+     * 处理超时的请求
      * @param responses The list of responses to update
      * @param now The current time
      */
@@ -439,7 +452,7 @@ public class NetworkClient implements KafkaClient {
 
     /**
      * Handle any completed receives and update the response list with the responses received.
-     *
+     * 处理所有已完成的接收，并使用接收到的响应更新响应列表
      * @param responses The list of responses to update
      * @param now The current time
      */
@@ -448,6 +461,7 @@ public class NetworkClient implements KafkaClient {
             String source = receive.source();
             ClientRequest req = inFlightRequests.completeNext(source);
             Struct body = parseResponse(receive.payload(), req.request().header());
+            //如果不是ApiKeys.METADATA
             if (!metadataUpdater.maybeHandleCompletedReceive(req, now, body))
                 responses.add(new ClientResponse(req, now, false, body));
         }
@@ -509,6 +523,9 @@ public class NetworkClient implements KafkaClient {
         }
     }
 
+    /**
+     * 默认元数据更新器
+     */
     class DefaultMetadataUpdater implements MetadataUpdater {
 
         /* the current cluster metadata */
@@ -538,7 +555,7 @@ public class NetworkClient implements KafkaClient {
 
         @Override
         public long maybeUpdate(long now) {
-            // should we update our metadata?
+            // should we update our metadata? 是否应该更新元数据
             long timeToNextMetadataUpdate = metadata.timeToNextUpdate(now);
             long timeToNextReconnectAttempt = Math.max(this.lastNoNodeAvailableMs + metadata.refreshBackoff() - now, 0);
             long waitForMetadataFetch = this.metadataFetchInProgress ? Integer.MAX_VALUE : 0;

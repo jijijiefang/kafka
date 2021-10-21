@@ -269,6 +269,7 @@ public class Selector implements Selectable {
         this.sensors.selectTime.record(endSelect - startSelect, time.milliseconds());
 
         if (readyKeys > 0 || !immediatelyConnectedKeys.isEmpty()) {
+            //处理已经就绪的事件键
             pollSelectionKeys(this.nioSelector.selectedKeys(), false);
             pollSelectionKeys(immediatelyConnectedKeys, true);
         }
@@ -282,8 +283,8 @@ public class Selector implements Selectable {
 
     /**
      * 轮询就绪的选择键
-     * @param selectionKeys
-     * @param isImmediatelyConnected
+     * @param selectionKeys 键集合
+     * @param isImmediatelyConnected 是否立即连接
      */
     private void pollSelectionKeys(Iterable<SelectionKey> selectionKeys, boolean isImmediatelyConnected) {
         Iterator<SelectionKey> iterator = selectionKeys.iterator();
@@ -298,7 +299,7 @@ public class Selector implements Selectable {
 
             try {
 
-                /* complete any connections that have finished their handshake (either normally or immediately) */
+                /* complete any connections that have finished their handshake (either normally or immediately) *///完成所有已完成握手的连接
                 if (isImmediatelyConnected || key.isConnectable()) {
                     if (channel.finishConnect()) {
                         this.connected.add(channel.id());
@@ -311,14 +312,14 @@ public class Selector implements Selectable {
                 if (channel.isConnected() && !channel.ready())
                     channel.prepare();
 
-                /* if channel is ready read from any connections that have readable data */
+                /* if channel is ready read from any connections that have readable data *///通道已就绪，有可读数据
                 if (channel.ready() && key.isReadable() && !hasStagedReceive(channel)) {
                     NetworkReceive networkReceive;
                     while ((networkReceive = channel.read()) != null)
                         addToStagedReceives(channel, networkReceive);
                 }
 
-                /* if channel is ready write to any sockets that have space in their buffer and for which we have data */
+                /* if channel is ready write to any sockets that have space in their buffer and for which we have data *///通道已就绪，可以写入数据到通道
                 if (channel.ready() && key.isWritable()) {
                     //执行写入数据到Socket
                     Send send = channel.write();

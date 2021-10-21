@@ -16,19 +16,19 @@
  */
 package org.apache.kafka.clients.producer.internals;
 
-import java.nio.ByteBuffer;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
-
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.Rate;
 import org.apache.kafka.common.utils.Time;
+
+import java.nio.ByteBuffer;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 
 /**
@@ -85,8 +85,8 @@ public final class BufferPool {
      * Allocate a buffer of the given size. This method blocks if there is not enough memory and the buffer pool
      * is configured with blocking mode.
      * 分配给定大小的缓冲区。 如果没有足够的内存并且缓冲池配置了阻塞模式，则此方法会阻塞。
-     * @param size The buffer size to allocate in bytes
-     * @param maxTimeToBlockMs The maximum time in milliseconds to block for buffer memory to be available
+     * @param size The buffer size to allocate in bytes 分配缓存区大小
+     * @param maxTimeToBlockMs The maximum time in milliseconds to block for buffer memory to be available 超时时间
      * @return The buffer
      * @throws InterruptedException If the thread is interrupted while blocked
      * @throws IllegalArgumentException if size is larger than the total memory controlled by the pool (and hence we would block
@@ -101,13 +101,14 @@ public final class BufferPool {
 
         this.lock.lock();
         try {
-            // check if we have a free buffer of the right size pooled
+            // check if we have a free buffer of the right size pooled 检查是否有大小合适的空闲缓冲池
             if (size == poolableSize && !this.free.isEmpty())
                 return this.free.pollFirst();
 
             // now check if the request is immediately satisfiable with the
-            // memory on hand or if we need to block
+            // memory on hand or if we need to block 现在检查请求是否可以立即满足手头的内存，或者是否需要阻塞
             int freeListSize = this.free.size() * this.poolableSize;
+            //空闲内存大于申请分配的内存
             if (this.availableMemory + freeListSize >= size) {
                 // we have enough unallocated or pooled memory to immediately
                 // satisfy the request

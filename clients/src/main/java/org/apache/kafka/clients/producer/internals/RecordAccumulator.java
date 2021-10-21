@@ -52,6 +52,7 @@ public final class RecordAccumulator {
     private final AtomicInteger appendsInProgress;
     //默认批次大小16384 16K
     private final int batchSize;
+    //压缩类型
     private final CompressionType compression;
     private final long lingerMs;
     private final long retryBackoffMs;
@@ -138,12 +139,12 @@ public final class RecordAccumulator {
      * The append result will contain the future metadata, and flag for whether the appended batch is full or a new batch is created
      * <p>
      *
-     * @param tp The topic/partition to which this record is being sent
-     * @param timestamp The timestamp of the record
-     * @param key The key for the record
-     * @param value The value for the record
-     * @param callback The user-supplied callback to execute when the request is complete
-     * @param maxTimeToBlock The maximum time in milliseconds to block for buffer memory to be available
+     * @param tp The topic/partition to which this record is being sent 主题与分区
+     * @param timestamp The timestamp of the record 时间戳
+     * @param key The key for the record 消息key
+     * @param value The value for the record 消息体
+     * @param callback The user-supplied callback to execute when the request is complete 回调方法
+     * @param maxTimeToBlock The maximum time in milliseconds to block for buffer memory to be available 消息追加超时时间
      */
     public RecordAppendResult append(TopicPartition tp,
                                      long timestamp,
@@ -155,7 +156,7 @@ public final class RecordAccumulator {
         // abortIncompleteBatches().
         appendsInProgress.incrementAndGet();
         try {
-            // check if we have an in-progress batch
+            // check if we have an in-progress batch 获取或新建一个当前主题分区的双向队列
             Deque<RecordBatch> dq = getOrCreateDeque(tp);
             synchronized (dq) {
                 if (closed)
@@ -167,6 +168,7 @@ public final class RecordAccumulator {
             }
 
             // we don't have an in-progress record batch try to allocate a new batch 没有进行中的批次，创建一个新的批次
+            //新建缓冲区,取批次最大容量16K或消息长度的大值
             int size = Math.max(this.batchSize, Records.LOG_OVERHEAD + Record.recordSize(key, value));
             log.trace("Allocating a new {} byte message buffer for topic {} partition {}", size, tp.topic(), tp.partition());
             //在空闲列表里分配缓冲区
@@ -206,6 +208,7 @@ public final class RecordAccumulator {
             if (future == null)
                 last.records.close();
             else
+                //双向队列元素大于1或最近批次已满
                 return new RecordAppendResult(future, deque.size() > 1 || last.records.isFull(), false);
         }
         return null;
@@ -298,7 +301,7 @@ public final class RecordAccumulator {
         for (Map.Entry<TopicPartition, Deque<RecordBatch>> entry : this.batches.entrySet()) {
             TopicPartition part = entry.getKey();
             Deque<RecordBatch> deque = entry.getValue();
-
+            //获取主题分区的领导者
             Node leader = cluster.leaderFor(part);
             if (leader == null) {
                 unknownLeadersExist = true;
@@ -308,6 +311,7 @@ public final class RecordAccumulator {
                     if (batch != null) {
                         //重试相关，batch.attempts > 0说明是重试
                         boolean backingOff = batch.attempts > 0 && batch.lastAttemptMs + retryBackoffMs > nowMs;
+                        //已耗费时间
                         long waitedTimeMs = nowMs - batch.lastAttemptMs;
                         //根据是否重试来判断，重试间隔时间或发送最大延迟时间
                         long timeToWaitMs = backingOff ? retryBackoffMs : lingerMs;
@@ -318,6 +322,7 @@ public final class RecordAccumulator {
                         //当前已经等待时间是否大于最大等待时间
                         boolean expired = waitedTimeMs >= timeToWaitMs;
                         //发送条件是否满足
+                        //1.批次已满 2.到达等待时间 3.内存耗尽 4.累加器关闭 5.当前是否有线程正在等待刷新
                         boolean sendable = full || expired || exhausted || closed || flushInProgress();
                         if (sendable && !backingOff) {
                             readyNodes.add(leader);
@@ -368,7 +373,7 @@ public final class RecordAccumulator {
             return Collections.emptyMap();
 
         Map<Integer, List<RecordBatch>> batches = new HashMap<>();
-        //
+        //循环Broker节点，整理每个Broker节点上的主题分区数据
         for (Node node : nodes) {
             int size = 0;
             List<PartitionInfo> parts = cluster.partitionsForNode(node.id());
@@ -380,6 +385,7 @@ public final class RecordAccumulator {
                 TopicPartition tp = new TopicPartition(part.topic(), part.partition());
                 // Only proceed if the partition has no in-flight batches.
                 if (!muted.contains(tp)) {
+                    //主题分区对应的要发送的消息数据
                     Deque<RecordBatch> deque = getDeque(new TopicPartition(part.topic(), part.partition()));
                     if (deque != null) {
                         synchronized (deque) {
@@ -483,6 +489,7 @@ public final class RecordAccumulator {
     /**
      * This function is only called when sender is closed forcefully. It will fail all the
      * incomplete batches and return.
+     * 使所有未完成的批次失败并返回
      */
     public void abortIncompleteBatches() {
         // We need to keep aborting the incomplete batch until no thread is trying to append to

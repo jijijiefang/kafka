@@ -51,42 +51,54 @@ public class Sender implements Runnable {
     private static final Logger log = LoggerFactory.getLogger(Sender.class);
 
     /* the state of each nodes connection */
+    //kafka 网络通信客户端，主要封装与 broker 的网络通信
     private final KafkaClient client;
 
     /* the record accumulator that batches records */
+    //消息记录累积器
     private final RecordAccumulator accumulator;
 
     /* the metadata for the client */
+    //元数据管理器，即 topic 的路由分区信息
     private final Metadata metadata;
 
     /* the flag indicating whether the producer should guarantee the message order on the broker or not. */
+    //是否需要保证消息的顺序性
     private final boolean guaranteeMessageOrder;
 
     /* the maximum request size to attempt to send to the server */
+    //调用 send 方法发送的最大请求大小，包括 key、消息体序列化后的消息总大小不能超过该值。通过参数 max.request.size 来设置
     private final int maxRequestSize;
 
     /* the number of acknowledgements to request from the server */
+    //用来定义消息“已提交”的条件，就是 Broker 端向客户端承偌已提交的条件，可选值如下0、-1、1
     private final short acks;
 
     /* the number of times to retry a failed request before giving up */
+    //重试次数
     private final int retries;
 
     /* the clock instance used for getting the time */
+    //时间工具类
     private final Time time;
 
     /* true while the sender thread is still running */
+    //线程状态，为true表示运行中
     private volatile boolean running;
 
     /* true when the caller wants to ignore all unsent/inflight messages and force close.  */
+    //是否强制关闭，此时会忽略正在发送中的消息
     private volatile boolean forceClose;
 
     /* metrics */
+    //消息发送相关的统计指标收集器
     private final SenderMetrics sensors;
 
     /* param clientId of the client */
     private String clientId;
 
     /* the max time to wait for the server to respond to the request*/
+    //请求的超时时间
     private final int requestTimeout;
 
     public Sender(KafkaClient client,
@@ -123,6 +135,7 @@ public class Sender implements Runnable {
         // main loop, runs until close is called
         while (running) {
             try {
+                //将消息缓存区中的消息向 broker 发送
                 run(time.milliseconds());
             } catch (Exception e) {
                 log.error("Uncaught error in kafka producer I/O thread: ", e);
@@ -134,6 +147,7 @@ public class Sender implements Runnable {
         // okay we stopped accepting requests but there may still be
         // requests in the accumulator or waiting for acknowledgment,
         // wait until these are completed.
+        //如果主动关闭Sender线程，如果不是强制关闭，则如果缓存区还有消息待发送,将剩余的消息发送完毕后再退出
         while (!forceClose && (this.accumulator.hasUnsent() || this.client.inFlightRequestCount() > 0)) {
             try {
                 run(time.milliseconds());
@@ -141,12 +155,14 @@ public class Sender implements Runnable {
                 log.error("Uncaught error in kafka producer I/O thread: ", e);
             }
         }
+        //如果强制关闭 Sender 线程，则拒绝未完成提交的消息
         if (forceClose) {
             // We need to fail all the incomplete batches and wake up the threads waiting on
             // the futures.
             this.accumulator.abortIncompleteBatches();
         }
         try {
+            //关闭 Kafka Client 即网络通信对象
             this.client.close();
         } catch (Exception e) {
             log.error("Failed to close network client", e);
@@ -176,13 +192,14 @@ public class Sender implements Runnable {
         long notReadyTimeout = Long.MAX_VALUE;
         while (iter.hasNext()) {
             Node node = iter.next();
+            //开始连接到给定节点，如果已经连接并准备发送到该节点，则返回true
             if (!this.client.ready(node, now)) {
                 iter.remove();
                 notReadyTimeout = Math.min(notReadyTimeout, this.client.connectionDelay(node, now));
             }
         }
 
-        // create produce requests 创建生产请求 整理成Broker节点:批次数据的格式
+        // create produce requests 创建生产请求 整理成{Broker节点:批次数据}的格式
         Map<Integer, List<RecordBatch>> batches = this.accumulator.drain(cluster,
                                                                          result.readyNodes,
                                                                          this.maxRequestSize,
@@ -194,7 +211,7 @@ public class Sender implements Runnable {
                     this.accumulator.mutePartition(batch.topicPartition);
             }
         }
-
+        //中止已超时的批次
         List<RecordBatch> expiredBatches = this.accumulator.abortExpiredBatches(this.requestTimeout, now);
         // update sensors
         for (RecordBatch expiredBatch : expiredBatches)

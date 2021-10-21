@@ -125,6 +125,10 @@ public class MemoryRecords implements Records {
             this.writeLimit >= this.compressor.estimatedBytesWritten() + Records.LOG_OVERHEAD + Record.recordSize(key, value);
     }
 
+    /**
+     * 一个消息批次是否已经满了
+     * @return boolean
+     */
     public boolean isFull() {
         return !this.writable || this.writeLimit <= this.compressor.estimatedBytesWritten();
     }

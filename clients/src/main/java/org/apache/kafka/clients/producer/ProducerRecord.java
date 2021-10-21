@@ -38,10 +38,15 @@ package org.apache.kafka.clients.producer;
  */
 public final class ProducerRecord<K, V> {
 
+    //消息主题
     private final String topic;
+    //消息主题分区,可以指定，如果指定了key的话，会使用key的hashCode与队列总数进行取模来选择分区，如果前面两者都未指定，则会轮询主题下的所有分区
     private final Integer partition;
+    //消息键，如果指定该值，则会使用该值的 hashcode 与 队列数进行取模来选择分区
     private final K key;
+    //消息体
     private final V value;
+    //时间戳
     private final Long timestamp;
 
     /**

@@ -28,7 +28,7 @@ public final class ClientRequest {
 
     /**
      * @param createdTimeMs The unix timestamp in milliseconds for the time at which this request was created.
-     * @param expectResponse Should we expect a response message or is this request complete once it is sent?
+     * @param expectResponse Should we expect a response message or is this request complete once it is sent? 应该期待一条响应消息，还是该请求在发送后即已完成
      * @param request The request
      * @param callback A callback to execute when the response has been received (or null if no callback is necessary)
      */

@@ -26,7 +26,7 @@ import java.util.List;
 
 /**
  * A batch of records that is or will be sent.
- * 
+ * 正在发送或将要发送的一批记录
  * This class is not thread safe and external synchronization must be used when modifying it
  */
 public final class RecordBatch {
@@ -64,6 +64,7 @@ public final class RecordBatch {
      * @return The RecordSend corresponding to this record or null if there isn't sufficient room.
      */
     public FutureRecordMetadata tryAppend(long timestamp, byte[] key, byte[] value, Callback callback, long now) {
+        //当前批次消息已满
         if (!this.records.hasRoomFor(key, value)) {
             return null;
         } else {
@@ -117,6 +118,7 @@ public final class RecordBatch {
 
     /**
      * A callback and the associated FutureRecordMetadata argument to pass to it.
+     * 回调和要传递给它的关联FutureRecordMetadata参数
      */
     final private static class Thunk {
         final Callback callback;
