@@ -239,7 +239,7 @@ public class NetworkClient implements KafkaClient {
     }
 
     /**
-     * 发送
+     * 发送操作，其实是设置关注OP_WRITE事件
      * @param request 请求
      * @param now 当前时间
      */
@@ -261,7 +261,7 @@ public class NetworkClient implements KafkaClient {
      */
     @Override
     public List<ClientResponse> poll(long timeout, long now) {
-        //如果需要，启动群集元数据更新
+        //如果需要，元数据更新
         long metadataTimeout = metadataUpdater.maybeUpdate(now);
         try {
             //执行读、写、建立连接等操作
@@ -554,21 +554,30 @@ public class NetworkClient implements KafkaClient {
             return !this.metadataFetchInProgress && this.metadata.timeToNextUpdate(now) == 0;
         }
 
+        /**
+         * 可能需要更新元数据
+         * @param now 当前时间戳
+         * @return 剩余多次时间进行拉取
+         */
         @Override
         public long maybeUpdate(long now) {
             // should we update our metadata? 是否应该更新元数据
+            //下次刷新元数据时间
             long timeToNextMetadataUpdate = metadata.timeToNextUpdate(now);
+            //下次重连时间
             long timeToNextReconnectAttempt = Math.max(this.lastNoNodeAvailableMs + metadata.refreshBackoff() - now, 0);
-            //如果存在已发送但尚未收到响应的元数据请求无限等待
+            //是否有进行中的元数据拉取
             long waitForMetadataFetch = this.metadataFetchInProgress ? Integer.MAX_VALUE : 0;
-            // if there is no node available to connect, back off refreshing metadata
+            // if there is no node available to connect, back off refreshing metadata 如果没有可连接的节点，请停止刷新元数据
             long metadataTimeout = Math.max(Math.max(timeToNextMetadataUpdate, timeToNextReconnectAttempt),
                     waitForMetadataFetch);
-            //到时间拉取元数据了
+            //元数据超时为0，说明可以进行元数据拉取请求
             if (metadataTimeout == 0) {
                 // Beware that the behavior of this method and the computation of timeouts for poll() are
                 // highly dependent on the behavior of leastLoadedNode.
+                //选择未完成请求最少且至少符合连接条件的节点
                 Node node = leastLoadedNode(now);
+                //需要更新元数据
                 maybeUpdate(now, node);
             }
 
@@ -638,7 +647,7 @@ public class NetworkClient implements KafkaClient {
         }
 
         /**
-         * Add a metadata request to the list of sends if we can make one 如果可以，请将元数据请求添加到发送列表中
+         * Add a metadata request to the list of sends if we can make one 如果可以的话，将元数据请求添加到发送列表中
          */
         private void maybeUpdate(long now, Node node) {
             if (node == null) {
@@ -648,18 +657,21 @@ public class NetworkClient implements KafkaClient {
                 return;
             }
             String nodeConnectionId = node.idString();
-
+            //Broker节点已连接，可以发送请求
             if (canSendRequest(nodeConnectionId)) {
+                //设置正在进行元数据拉取
                 this.metadataFetchInProgress = true;
                 MetadataRequest metadataRequest;
+                //是否需要请求所有主题的元数据
                 if (metadata.needMetadataForAllTopics())
+                    //ApiKeys.METADATA.id
                     metadataRequest = MetadataRequest.allTopics();
                 else
                     metadataRequest = new MetadataRequest(new ArrayList<>(metadata.topics()));
                 //拉取元数据请求
                 ClientRequest clientRequest = request(now, nodeConnectionId, metadataRequest);
                 log.debug("Sending metadata request {} to node {}", metadataRequest, node.id());
-                //写入拉取元数据请求到SocketChannel
+                //设置发送请求和OP_WRITE事件
                 doSend(clientRequest, now);
             } else if (connectionStates.canConnect(nodeConnectionId, now)) {
                 // we don't have a connection to this node right now, make one
