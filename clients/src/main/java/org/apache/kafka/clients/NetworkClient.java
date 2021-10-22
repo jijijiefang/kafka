@@ -532,6 +532,7 @@ public class NetworkClient implements KafkaClient {
         private final Metadata metadata;
 
         /* true iff there is a metadata request that has been sent and for which we have not yet received a response */
+        //如果存在已发送但尚未收到响应的元数据请求，则为true
         private boolean metadataFetchInProgress;
 
         /* the last timestamp when no broker node is available to connect */
@@ -558,11 +559,12 @@ public class NetworkClient implements KafkaClient {
             // should we update our metadata? 是否应该更新元数据
             long timeToNextMetadataUpdate = metadata.timeToNextUpdate(now);
             long timeToNextReconnectAttempt = Math.max(this.lastNoNodeAvailableMs + metadata.refreshBackoff() - now, 0);
+            //如果存在已发送但尚未收到响应的元数据请求无限等待
             long waitForMetadataFetch = this.metadataFetchInProgress ? Integer.MAX_VALUE : 0;
             // if there is no node available to connect, back off refreshing metadata
             long metadataTimeout = Math.max(Math.max(timeToNextMetadataUpdate, timeToNextReconnectAttempt),
                     waitForMetadataFetch);
-
+            //到时间拉取元数据了
             if (metadataTimeout == 0) {
                 // Beware that the behavior of this method and the computation of timeouts for poll() are
                 // highly dependent on the behavior of leastLoadedNode.
@@ -636,7 +638,7 @@ public class NetworkClient implements KafkaClient {
         }
 
         /**
-         * Add a metadata request to the list of sends if we can make one
+         * Add a metadata request to the list of sends if we can make one 如果可以，请将元数据请求添加到发送列表中
          */
         private void maybeUpdate(long now, Node node) {
             if (node == null) {
@@ -654,8 +656,10 @@ public class NetworkClient implements KafkaClient {
                     metadataRequest = MetadataRequest.allTopics();
                 else
                     metadataRequest = new MetadataRequest(new ArrayList<>(metadata.topics()));
+                //拉取元数据请求
                 ClientRequest clientRequest = request(now, nodeConnectionId, metadataRequest);
                 log.debug("Sending metadata request {} to node {}", metadataRequest, node.id());
+                //写入拉取元数据请求到SocketChannel
                 doSend(clientRequest, now);
             } else if (connectionStates.canConnect(nodeConnectionId, now)) {
                 // we don't have a connection to this node right now, make one

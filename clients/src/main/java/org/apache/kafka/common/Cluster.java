@@ -26,6 +26,7 @@ import java.util.Set;
 
 /**
  * A representation of a subset of the nodes, topics, and partitions in the Kafka cluster.
+ * Kafka集群中节点、主题和分区子集的表示。
  */
 public final class Cluster {
 
