@@ -618,8 +618,15 @@ public class NetworkClient implements KafkaClient {
             this.metadata.requestUpdate();
         }
 
+        /**
+         * 处理元数据拉取响应
+         * @param header
+         * @param body
+         * @param now
+         */
         private void handleResponse(RequestHeader header, Struct body, long now) {
             this.metadataFetchInProgress = false;
+            //组装元数据拉取响应
             MetadataResponse response = new MetadataResponse(body);
             Cluster cluster = response.cluster();
             // check if any topics metadata failed to get updated
@@ -638,7 +645,7 @@ public class NetworkClient implements KafkaClient {
         }
 
         /**
-         * Create a metadata request for the given topics
+         * Create a metadata request for the given topics 根据主题创建元数据拉取请求
          */
         private ClientRequest request(long now, String node, MetadataRequest metadata) {
             RequestSend send = new RequestSend(node, nextRequestHeader(ApiKeys.METADATA), metadata.toStruct());
