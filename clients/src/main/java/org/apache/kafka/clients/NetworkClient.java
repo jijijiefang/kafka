@@ -648,7 +648,7 @@ public class NetworkClient implements KafkaClient {
         }
 
         /**
-         * Create a metadata request for the given topics 根据主题创建元数据拉取请求
+         * Create a metadata request for the given topics
          */
         private ClientRequest request(long now, String node, MetadataRequest metadata) {
             RequestSend send = new RequestSend(node, nextRequestHeader(ApiKeys.METADATA), metadata.toStruct());

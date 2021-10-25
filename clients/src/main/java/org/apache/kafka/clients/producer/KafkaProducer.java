@@ -541,6 +541,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             sender.wakeup();
             //阻塞当前线程
             metadata.awaitUpdate(version, remainingWaitMs);
+            //拉取完成后计算使用时间是否超时
             long elapsed = time.milliseconds() - begin;
             if (elapsed >= maxWaitMs)
                 throw new TimeoutException("Failed to update metadata after " + maxWaitMs + " ms.");
