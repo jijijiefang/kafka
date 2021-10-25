@@ -155,7 +155,7 @@ public class NetworkClient implements KafkaClient {
             return true;
 
         if (connectionStates.canConnect(node.idString(), now))
-            // if we are interested in sending to a node and we don't have a connection to it, initiate one
+            // if we are interested in sending to a node and we don't have a connection to it, initiate one 连接到Broker节点
             initiateConnect(node, now);
 
         return false;
@@ -503,13 +503,15 @@ public class NetworkClient implements KafkaClient {
     }
 
     /**
-     * Initiate a connection to the given node
+     * Initiate a connection to the given node 启动到给定节点的连接
      */
     private void initiateConnect(Node node, long now) {
         String nodeConnectionId = node.idString();
         try {
             log.debug("Initiating connection to node {} at {}:{}.", node.id(), node.host(), node.port());
+            //设置连接节点状态为连接中
             this.connectionStates.connecting(nodeConnectionId, now);
+            //开始连接到给定的地址，并将连接添加到与给定id号关联的这个 nioSelector
             selector.connect(nodeConnectionId,
                              new InetSocketAddress(node.host(), node.port()),
                              this.socketSendBuffer,
@@ -619,8 +621,15 @@ public class NetworkClient implements KafkaClient {
             this.metadata.requestUpdate();
         }
 
+        /**
+         * 处理元数据拉取响应
+         * @param header
+         * @param body
+         * @param now
+         */
         private void handleResponse(RequestHeader header, Struct body, long now) {
             this.metadataFetchInProgress = false;
+            //组装元数据拉取响应
             MetadataResponse response = new MetadataResponse(body);
             Cluster cluster = response.cluster();
             // check if any topics metadata failed to get updated
@@ -639,7 +648,7 @@ public class NetworkClient implements KafkaClient {
         }
 
         /**
-         * Create a metadata request for the given topics
+         * Create a metadata request for the given topics 根据主题创建元数据拉取请求
          */
         private ClientRequest request(long now, String node, MetadataRequest metadata) {
             RequestSend send = new RequestSend(node, nextRequestHeader(ApiKeys.METADATA), metadata.toStruct());

@@ -127,6 +127,7 @@ public class ConsumerNetworkClient implements Closeable {
 
     /**
      * Block until the metadata has been refreshed.
+     * 阻塞，直到元数据被刷新
      */
     public void awaitMetadataUpdate() {
         int version = this.metadata.requestUpdate();
@@ -138,6 +139,7 @@ public class ConsumerNetworkClient implements Closeable {
     /**
      * Ensure our metadata is fresh (if an update is expected, this will block
      * until it has completed).
+     * 确保元数据是新鲜的(如果需要更新，则会阻塞直到完成)
      */
     public void ensureFreshMetadata() {
         if (this.metadata.updateRequested() || this.metadata.timeToNextUpdate(time.milliseconds()) == 0)
@@ -214,6 +216,12 @@ public class ConsumerNetworkClient implements Closeable {
         }
     }
 
+    /**
+     *
+     * @param timeout
+     * @param now
+     * @param executeDelayedTasks
+     */
     private void poll(long timeout, long now, boolean executeDelayedTasks) {
         // send all the requests we can send now
         trySend(now);
@@ -221,6 +229,7 @@ public class ConsumerNetworkClient implements Closeable {
         // ensure we don't poll any longer than the deadline for
         // the next scheduled task
         timeout = Math.min(timeout, delayedTasks.nextTimeout(now));
+        //调用NetworkClient#poll拉取元数据
         clientPoll(timeout, now);
         now = time.milliseconds();
 

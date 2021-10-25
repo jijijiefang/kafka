@@ -351,6 +351,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
 
     /**
      * Ensure that we have a valid partition assignment from the coordinator.
+     * 确保协调器为我们分配了有效的分区
      */
     public void ensurePartitionAssignment() {
         if (subscriptions.partitionsAutoAssigned()) {
