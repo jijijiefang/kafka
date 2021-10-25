@@ -67,6 +67,7 @@ public class Selector implements Selectable {
     private static final Logger log = LoggerFactory.getLogger(Selector.class);
 
     private final java.nio.channels.Selector nioSelector;
+    //brokerId:KafkaChannel
     private final Map<String, KafkaChannel> channels;
     private final List<Send> completedSends;
     private final List<NetworkReceive> completedReceives;
@@ -302,6 +303,7 @@ public class Selector implements Selectable {
                 /* complete any connections that have finished their handshake (either normally or immediately) *///完成所有已完成握手的连接
                 if (isImmediatelyConnected || key.isConnectable()) {
                     if (channel.finishConnect()) {
+                        //已连接的集合加入此BrokerId
                         this.connected.add(channel.id());
                         this.sensors.connectionCreated.record();
                     } else
@@ -315,13 +317,14 @@ public class Selector implements Selectable {
                 /* if channel is ready read from any connections that have readable data *///通道已就绪，有可读数据
                 if (channel.ready() && key.isReadable() && !hasStagedReceive(channel)) {
                     NetworkReceive networkReceive;
+                    //从SocketChannel读取数据，处理粘包
                     while ((networkReceive = channel.read()) != null)
                         addToStagedReceives(channel, networkReceive);
                 }
 
                 /* if channel is ready write to any sockets that have space in their buffer and for which we have data *///通道已就绪，可以写入数据到通道
                 if (channel.ready() && key.isWritable()) {
-                    //执行写入数据到Socket
+                    //执行写入数据到SocketChannel
                     Send send = channel.write();
                     if (send != null) {
                         this.completedSends.add(send);

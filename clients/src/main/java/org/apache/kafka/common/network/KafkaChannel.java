@@ -127,14 +127,20 @@ public class KafkaChannel {
         this.transportLayer.addInterestOps(SelectionKey.OP_WRITE);
     }
 
+    /**
+     * 从SocketChannel读取数据
+     * @return
+     * @throws IOException
+     */
     public NetworkReceive read() throws IOException {
         NetworkReceive result = null;
-
+        //接收缓冲区
         if (receive == null) {
             receive = new NetworkReceive(maxReceiveSize, id);
         }
-
+        //从SocketChannel读取
         receive(receive);
+        //完全读取完毕
         if (receive.complete()) {
             receive.payload().rewind();
             result = receive;
@@ -157,6 +163,12 @@ public class KafkaChannel {
         return result;
     }
 
+    /**
+     * 接收数据
+     * @param receive
+     * @return
+     * @throws IOException
+     */
     private long receive(NetworkReceive receive) throws IOException {
         return receive.readFrom(transportLayer);
     }

@@ -59,7 +59,7 @@ public class NetworkClient implements KafkaClient {
     /* the state of each node's connection */
     private final ClusterConnectionStates connectionStates;
 
-    /* the set of requests currently being sent or awaiting a response 当前正在发送或等待响应的请求集*/
+    /* the set of requests currently being sent or awaiting a response 当前正在发送或等待响应的请求集合*/
     private final InFlightRequests inFlightRequests;
 
     /* the socket send buffer size in bytes */
@@ -153,7 +153,7 @@ public class NetworkClient implements KafkaClient {
 
         if (isReady(node, now))
             return true;
-
+        //如果可以建立连接
         if (connectionStates.canConnect(node.idString(), now))
             // if we are interested in sending to a node and we don't have a connection to it, initiate one 连接到Broker节点
             initiateConnect(node, now);
@@ -682,9 +682,11 @@ public class NetworkClient implements KafkaClient {
                 log.debug("Sending metadata request {} to node {}", metadataRequest, node.id());
                 //设置发送请求和OP_WRITE事件
                 doSend(clientRequest, now);
+            //是否可以建立连接
             } else if (connectionStates.canConnect(nodeConnectionId, now)) {
                 // we don't have a connection to this node right now, make one
                 log.debug("Initialize connection to node {} for sending metadata request", node.id());
+                //启动到给定节点的连接
                 initiateConnect(node, now);
                 // If initiateConnect failed immediately, this node will be put into blackout and we
                 // should allow immediately retrying in case there is another candidate node. If it

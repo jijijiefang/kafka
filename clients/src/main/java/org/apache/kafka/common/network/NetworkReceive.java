@@ -27,8 +27,10 @@ public class NetworkReceive implements Receive {
     public final static int UNLIMITED = -1;
 
     private final String source;
+    //存放消息长度
     private final ByteBuffer size;
     private final int maxSize;
+    //存放消息体
     private ByteBuffer buffer;
 
 
@@ -62,8 +64,13 @@ public class NetworkReceive implements Receive {
         return source;
     }
 
+    /**
+     * 读取完毕
+     * @return boolean
+     */
     @Override
     public boolean complete() {
+        //size缓冲区和buffer缓冲区都满了
         return !size.hasRemaining() && !buffer.hasRemaining();
     }
 
@@ -77,6 +84,7 @@ public class NetworkReceive implements Receive {
     @Deprecated
     public long readFromReadableChannel(ReadableByteChannel channel) throws IOException {
         int read = 0;
+        //从SocketChannel中读取到size缓冲区，如果size缓冲区满了，则可以获取到消息体长度
         if (size.hasRemaining()) {
             int bytesRead = channel.read(size);
             if (bytesRead < 0)
@@ -89,11 +97,13 @@ public class NetworkReceive implements Receive {
                     throw new InvalidReceiveException("Invalid receive (size = " + receiveSize + ")");
                 if (maxSize != UNLIMITED && receiveSize > maxSize)
                     throw new InvalidReceiveException("Invalid receive (size = " + receiveSize + " larger than " + maxSize + ")");
-
+                //根据消息体长度分配缓冲区
                 this.buffer = ByteBuffer.allocate(receiveSize);
             }
         }
+        //消息体缓冲区已分配
         if (buffer != null) {
+            //读取字节到消息体缓冲区
             int bytesRead = channel.read(buffer);
             if (bytesRead < 0)
                 throw new EOFException();
