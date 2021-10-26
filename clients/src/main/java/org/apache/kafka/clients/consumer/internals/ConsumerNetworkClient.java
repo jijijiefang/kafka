@@ -132,6 +132,7 @@ public class ConsumerNetworkClient implements Closeable {
     public void awaitMetadataUpdate() {
         int version = this.metadata.requestUpdate();
         do {
+            //轮询网络IO
             poll(Long.MAX_VALUE);
         } while (this.metadata.version() == version);
     }
@@ -143,6 +144,7 @@ public class ConsumerNetworkClient implements Closeable {
      */
     public void ensureFreshMetadata() {
         if (this.metadata.updateRequested() || this.metadata.timeToNextUpdate(time.milliseconds()) == 0)
+            //阻塞，直到元数据被刷新
             awaitMetadataUpdate();
     }
 
@@ -186,7 +188,7 @@ public class ConsumerNetworkClient implements Closeable {
     }
 
     /**
-     * Poll for any network IO.
+     * Poll for any network IO. 轮询任何网络IO
      * @param timeout The maximum time to wait for an IO event.
      * @throws WakeupException if {@link #wakeup()} is called from another thread
      */
@@ -217,36 +219,37 @@ public class ConsumerNetworkClient implements Closeable {
     }
 
     /**
-     *
-     * @param timeout
-     * @param now
-     * @param executeDelayedTasks
+     * 轮询网络IO
+     * @param timeout 超时时间
+     * @param now 当前时间戳
+     * @param executeDelayedTasks 是否执行延时任务
      */
     private void poll(long timeout, long now, boolean executeDelayedTasks) {
-        // send all the requests we can send now
+        // send all the requests we can send now 尝试发送所有请求
         trySend(now);
 
         // ensure we don't poll any longer than the deadline for
         // the next scheduled task
         timeout = Math.min(timeout, delayedTasks.nextTimeout(now));
-        //调用NetworkClient#poll拉取元数据
+        //调用NetworkClient#poll执行网络IO操作
         clientPoll(timeout, now);
         now = time.milliseconds();
 
         // handle any disconnects by failing the active requests. note that disconnects must
         // be checked immediately following poll since any subsequent call to client.ready()
         // will reset the disconnect status
+        //检查断开连接状态
         checkDisconnects(now);
 
-        // execute scheduled tasks
+        // execute scheduled tasks 是否执行延时任务
         if (executeDelayedTasks)
             delayedTasks.poll(now);
 
         // try again to send requests since buffer space may have been
-        // cleared or a connect finished in the poll
+        // cleared or a connect finished in the poll 再次尝试发送请求，因为缓冲区空间可能已被清除或轮询中的连接已完成
         trySend(now);
 
-        // fail requests that couldn't be sent if they have expired
+        // fail requests that couldn't be sent if they have expired 如果请求已过期则无法发送失败请求
         failExpiredRequests(now);
     }
 
@@ -270,6 +273,7 @@ public class ConsumerNetworkClient implements Closeable {
     }
 
     /**
+     * 获取对给定节点的待处理请求的计数。 这包括已发送的请求（即进行中的请求）和等待发送的请求
      * Get the count of pending requests to the given node. This includes both request that
      * have been transmitted (i.e. in-flight requests) and those which are awaiting transmission.
      * @param node The node in question
@@ -293,6 +297,10 @@ public class ConsumerNetworkClient implements Closeable {
         return total + client.inFlightRequestCount();
     }
 
+    /**
+     * 检查断开连接状态
+     * @param now 当前时间戳
+     */
     private void checkDisconnects(long now) {
         // any disconnects affecting requests that have already been transmitted will be handled
         // by NetworkClient, so we just need to check whether connections for any of the unsent
@@ -347,6 +355,11 @@ public class ConsumerNetworkClient implements Closeable {
         }
     }
 
+    /**
+     * 尝试发送所有请求
+     * @param now 时间戳
+     * @return
+     */
     private boolean trySend(long now) {
         // send any requests that can be sent now
         boolean requestsSent = false;

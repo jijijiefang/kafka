@@ -123,6 +123,7 @@ public class Fetcher<K, V> {
     /**
      * Set-up a fetch request for any node that we have assigned partitions for which doesn't already have
      * an in-flight fetch or pending fetch data.
+     * 发送拉取消息请求
      */
     public void sendFetches() {
         for (Map.Entry<Node, FetchRequest> fetchEntry: createFetchRequests().entrySet()) {
@@ -155,6 +156,7 @@ public class Fetcher<K, V> {
     }
 
     /**
+     * 如果需要重置主题分区的偏移量
      * Lookup and set offsets for any partitions which are awaiting an explicit reset.
      * @param partitions the partitions to reset
      */
@@ -167,6 +169,7 @@ public class Fetcher<K, V> {
     }
 
     /**
+     * 更新提供的分区的获取位置
      * Update the fetch positions for the provided partitions.
      * @param partitions the partitions to update positions for
      * @throws NoOffsetForPartitionException If no offset is stored for a given partition and no reset policy is available
@@ -340,7 +343,7 @@ public class Fetcher<K, V> {
 
     /**
      * Return the fetched records, empty the record buffer and update the consumed position.
-     *
+     * 返回获取的记录，清空记录缓冲区并更新消耗的位置。 注意：返回空记录保证消耗的位置不会更新。
      * NOTE: returning empty records guarantees the consumed position are NOT updated.
      *
      * @return The fetched records per partition
@@ -348,6 +351,7 @@ public class Fetcher<K, V> {
      *         the defaultResetPolicy is NONE
      */
     public Map<TopicPartition, List<ConsumerRecord<K, V>>> fetchedRecords() {
+        //是否需要向协调器请求分区分配
         if (this.subscriptions.partitionAssignmentNeeded()) {
             return Collections.emptyMap();
         } else {
@@ -478,7 +482,12 @@ public class Fetcher<K, V> {
         }
     }
 
+    /**
+     * 可拉取消息的分区
+     * @return Set<TopicPartition>
+     */
     private Set<TopicPartition> fetchablePartitions() {
+        //可以拉取消息的主题分区
         Set<TopicPartition> fetchable = subscriptions.fetchablePartitions();
         if (nextInLineRecords != null && !nextInLineRecords.isEmpty())
             fetchable.remove(nextInLineRecords.partition);
@@ -490,17 +499,19 @@ public class Fetcher<K, V> {
     /**
      * Create fetch requests for all nodes for which we have assigned partitions
      * that have no existing requests in flight.
+     * 创建拉取消息请求
      */
     private Map<Node, FetchRequest> createFetchRequests() {
         // create the fetch info
         Cluster cluster = metadata.fetch();
         Map<Node, Map<TopicPartition, FetchRequest.PartitionData>> fetchable = new HashMap<>();
         for (TopicPartition partition : fetchablePartitions()) {
+            //
             Node node = cluster.leaderFor(partition);
             if (node == null) {
                 metadata.requestUpdate();
             } else if (this.client.pendingRequestCount(node) == 0) {
-                // if there is a leader and no in-flight requests, issue a new fetch
+                // if there is a leader and no in-flight requests, issue a new fetch 如果有领导者并且没有进行中的请求，则发出新的拉取
                 Map<TopicPartition, FetchRequest.PartitionData> fetch = fetchable.get(node);
                 if (fetch == null) {
                     fetch = new HashMap<>();
