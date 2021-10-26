@@ -385,12 +385,20 @@ public class NetworkClient implements KafkaClient {
         return found;
     }
 
+    /**
+     * 解析响应
+     * @param responseBuffer 响应缓冲区
+     * @param requestHeader 请求头
+     * @return 响应体
+     */
     public static Struct parseResponse(ByteBuffer responseBuffer, RequestHeader requestHeader) {
         ResponseHeader responseHeader = ResponseHeader.parse(responseBuffer);
         // Always expect the response version id to be the same as the request version id
         short apiKey = requestHeader.apiKey();
         short apiVer = requestHeader.apiVersion();
+        //组装响应体
         Struct responseBody = ProtoUtils.responseSchema(apiKey, apiVer).read(responseBuffer);
+        //验证响应是否与预期的请求相对应
         correlate(requestHeader, responseHeader);
         return responseBody;
     }
@@ -459,7 +467,9 @@ public class NetworkClient implements KafkaClient {
     private void handleCompletedReceives(List<ClientResponse> responses, long now) {
         for (NetworkReceive receive : this.selector.completedReceives()) {
             String source = receive.source();
+            //获取当前节点最早的请求
             ClientRequest req = inFlightRequests.completeNext(source);
+            //解析响应
             Struct body = parseResponse(receive.payload(), req.request().header());
             //如果不是ApiKeys.METADATA
             if (!metadataUpdater.maybeHandleCompletedReceive(req, now, body))
@@ -484,7 +494,7 @@ public class NetworkClient implements KafkaClient {
     }
 
     /**
-     * Record any newly completed connections
+     * Record any newly completed connections 记录所有新完成的连接
      */
     private void handleConnections() {
         for (String node : this.selector.connected()) {
@@ -494,7 +504,7 @@ public class NetworkClient implements KafkaClient {
     }
 
     /**
-     * Validate that the response corresponds to the request we expect or else explode
+     * Validate that the response corresponds to the request we expect or else explode 验证响应是否与我们预期的请求相对应
      */
     private static void correlate(RequestHeader requestHeader, ResponseHeader responseHeader) {
         if (requestHeader.correlationId() != responseHeader.correlationId())

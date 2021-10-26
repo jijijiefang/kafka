@@ -98,7 +98,7 @@ final class ClusterConnectionStates {
     }
 
     /**
-     * Enter the connected state for the given connection
+     * Enter the connected state for the given connection 设置已连接状态
      * @param id The connection identifier
      */
     public void connected(String id) {

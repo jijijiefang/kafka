@@ -126,7 +126,7 @@ public class Selector implements Selectable {
 
     /**
      * Begin connecting to the given address and add the connection to this nioSelector associated with the given id
-     * number.
+     * number. 开始连接到给定地址，并将连接添加到此与给定id号关联的选择器
      * <p>
      * Note that this call only initiates the connection, which will be completed on a future {@link #poll(long)}
      * call. Check {@link #connected()} to see which (if any) connections have completed after a given poll call.
@@ -141,20 +141,22 @@ public class Selector implements Selectable {
     public void connect(String id, InetSocketAddress address, int sendBufferSize, int receiveBufferSize) throws IOException {
         if (this.channels.containsKey(id))
             throw new IllegalStateException("There is already a connection for id " + id);
-
+        //开启SocketChannel
         SocketChannel socketChannel = SocketChannel.open();
+        //设置非阻塞
         socketChannel.configureBlocking(false);
         Socket socket = socketChannel.socket();
-        //
+        //设置KeepAlive
         socket.setKeepAlive(true);
         if (sendBufferSize != Selectable.USE_DEFAULT_BUFFER_SIZE)
             socket.setSendBufferSize(sendBufferSize);
         if (receiveBufferSize != Selectable.USE_DEFAULT_BUFFER_SIZE)
             socket.setReceiveBufferSize(receiveBufferSize);
-        //
+        //设置TcpNoDelay
         socket.setTcpNoDelay(true);
         boolean connected;
         try {
+            //连接Broker
             connected = socketChannel.connect(address);
         } catch (UnresolvedAddressException e) {
             socketChannel.close();
@@ -163,9 +165,13 @@ public class Selector implements Selectable {
             socketChannel.close();
             throw e;
         }
+        //注册OP_CONNECT键事件
         SelectionKey key = socketChannel.register(nioSelector, SelectionKey.OP_CONNECT);
+        //创建KafkaChannel
         KafkaChannel channel = channelBuilder.buildChannel(id, key, maxReceiveSize);
+        //KafkaChannel设置到连接键上
         key.attach(channel);
+        //放入Map<String, KafkaChannel>中
         this.channels.put(id, channel);
 
         if (connected) {
@@ -258,7 +264,7 @@ public class Selector implements Selectable {
             throw new IllegalArgumentException("timeout should be >= 0");
 
         clear();
-
+        //如果有暂存的接收或需要立即连接，超时为0
         if (hasStagedReceives() || !immediatelyConnectedKeys.isEmpty())
             timeout = 0;
 
@@ -536,10 +542,11 @@ public class Selector implements Selectable {
 
 
     /**
-     * adds a receive to staged receives
+     * adds a receive to staged receives 将接收添加到暂存接收
      */
     private void addToStagedReceives(KafkaChannel channel, NetworkReceive receive) {
         if (!stagedReceives.containsKey(channel))
+            //不存在则新建放入接收暂存集合
             stagedReceives.put(channel, new ArrayDeque<NetworkReceive>());
 
         Deque<NetworkReceive> deque = stagedReceives.get(channel);
@@ -547,7 +554,7 @@ public class Selector implements Selectable {
     }
 
     /**
-     * checks if there are any staged receives and adds to completedReceives
+     * checks if there are any staged receives and adds to completedReceives 检查是否有任何暂存接收并添加到完成接收
      */
     private void addToCompletedReceives() {
         if (!this.stagedReceives.isEmpty()) {

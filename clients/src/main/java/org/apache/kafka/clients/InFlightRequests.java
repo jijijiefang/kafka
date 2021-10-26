@@ -55,7 +55,7 @@ final class InFlightRequests {
     }
 
     /**
-     * Get the oldest request (the one that that will be completed next) for the given node
+     * Get the oldest request (the one that that will be completed next) for the given node 获取给定节点的最早请求
      */
     public ClientRequest completeNext(String node) {
         return requestQueue(node).pollLast();

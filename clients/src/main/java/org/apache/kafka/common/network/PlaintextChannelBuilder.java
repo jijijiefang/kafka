@@ -12,14 +12,13 @@
  */
 package org.apache.kafka.common.network;
 
-import java.nio.channels.SelectionKey;
-import java.util.Map;
-
-import org.apache.kafka.common.security.auth.PrincipalBuilder;
 import org.apache.kafka.common.KafkaException;
-
+import org.apache.kafka.common.security.auth.PrincipalBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.nio.channels.SelectionKey;
+import java.util.Map;
 
 public class PlaintextChannelBuilder implements ChannelBuilder {
     private static final Logger log = LoggerFactory.getLogger(PlaintextChannelBuilder.class);
@@ -35,9 +34,18 @@ public class PlaintextChannelBuilder implements ChannelBuilder {
         }
     }
 
+    /**
+     * 创建KafkaChannel
+     * @param  id  channel id Borker的id
+     * @param  key SelectionKey 选择键
+     * @param  maxReceiveSize 接收缓冲区最大空间
+     * @return KafkaChannel
+     * @throws KafkaException 异常
+     */
     public KafkaChannel buildChannel(String id, SelectionKey key, int maxReceiveSize) throws KafkaException {
         KafkaChannel channel = null;
         try {
+            //新建TransportLayer
             PlaintextTransportLayer transportLayer = new PlaintextTransportLayer(key);
             Authenticator authenticator = new DefaultAuthenticator();
             authenticator.configure(transportLayer, this.principalBuilder, this.configs);
