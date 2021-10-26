@@ -156,6 +156,7 @@ public class KafkaChannel {
      */
     public Send write() throws IOException {
         Send result = null;
+        //写入完成返回send，否则返回null
         if (send != null && send(send)) {
             result = send;
             send = null;
@@ -181,9 +182,10 @@ public class KafkaChannel {
      */
     private boolean send(Send send) throws IOException {
         send.writeTo(transportLayer);
+        //如果数据写入完毕，移除关注写事件
         if (send.completed())
             transportLayer.removeInterestOps(SelectionKey.OP_WRITE);
-
+        //返回写入成功
         return send.completed();
     }
 

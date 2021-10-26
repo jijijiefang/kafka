@@ -32,6 +32,7 @@ public class NetworkSend extends ByteBufferSend {
         for (int i = 0; i < buffers.length; i++)
             size += buffers[i].remaining();
         ByteBuffer[] delimited = new ByteBuffer[buffers.length + 1];
+        //字节缓冲区数组索引为0的字节缓冲区存放的是buffers总容量大小
         delimited[0] = ByteBuffer.allocate(4);
         delimited[0].putInt(size);
         delimited[0].rewind();
