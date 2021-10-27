@@ -980,25 +980,26 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * @return The fetched records (may be empty)
      */
     private Map<TopicPartition, List<ConsumerRecord<K, V>>> pollOnce(long timeout) {
-        // ensure we have partitions assigned if we expect to
+        // ensure we have partitions assigned if we expect to 如果开启了分区自动分配
         if (subscriptions.partitionsAutoAssigned())
             coordinator.ensurePartitionAssignment();
 
         // fetch positions if we have partitions we're subscribed to that we
         // don't know the offset for
         if (!subscriptions.hasAllFetchPositions())
+            //将获取位置设置为提交位置（如果有）或使用用户配置的偏移重置策略重置它
             updateFetchPositions(this.subscriptions.missingFetchPositions());
 
         long now = time.milliseconds();
 
-        // execute delayed tasks (e.g. autocommits and heartbeats) prior to fetching records
+        // execute delayed tasks (e.g. autocommits and heartbeats) prior to fetching records 在获取记录之前执行延迟任务（例如自动提交和心跳）
         client.executeDelayedTasks(now);
 
-        // init any new fetches (won't resend pending fetches)
+        // init any new fetches (won't resend pending fetches) 初始化任何新的提取（不会重新发送挂起的提取）
         Map<TopicPartition, List<ConsumerRecord<K, V>>> records = fetcher.fetchedRecords();
 
         // if data is available already, e.g. from a previous network client poll() call to commit,
-        // then just return it immediately
+        // then just return it immediately 如果数据已经可用，例如从之前的网络客户端 poll() 调用提交，然后立即返回它
         if (!records.isEmpty())
             return records;
 
@@ -1401,10 +1402,11 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
     }
 
     /**
+     * 将获取位置设置为提交位置（如果有）或使用用户配置的偏移重置策略重置它
      * Set the fetch position to the committed position (if there is one)
      * or reset it using the offset reset policy the user has configured.
      *
-     * @param partitions The partitions that needs updating fetch positions
+     * @param partitions The partitions that needs updating fetch positions 需要更新位置的主题分区集合
      * @throws NoOffsetForPartitionException If no offset is stored for a given partition and no offset reset policy is
      *             defined
      */
@@ -1413,16 +1415,17 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
         // case if the user called seekToBeginning or seekToEnd. We do this check first to
         // avoid an unnecessary lookup of committed offsets (which typically occurs when
         // the user is manually assigning partitions and managing their own offsets).
+        //如果需要重置主题分区的偏移量
         fetcher.resetOffsetsIfNeeded(partitions);
 
         if (!subscriptions.hasAllFetchPositions()) {
             // if we still don't have offsets for all partitions, then we should either seek
             // to the last committed position or reset using the auto reset policy
 
-            // first refresh commits for all assigned partitions
+            // first refresh commits for all assigned partitions 所有分配的分区的第一次刷新提交
             coordinator.refreshCommittedOffsetsIfNeeded();
 
-            // then do any offset lookups in case some positions are not known
+            // then do any offset lookups in case some positions are not known 如果某些位置未知，则执行任何偏移查找
             fetcher.updateFetchPositions(partitions);
         }
     }

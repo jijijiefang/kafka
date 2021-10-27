@@ -66,10 +66,10 @@ public class SubscriptionState {
     /* the list of partitions the user has requested */
     private final Set<TopicPartition> userAssignment;
 
-    /* the list of partitions currently assigned */
+    /* the list of partitions currently assigned 当前分配的分区列表*/
     private final Map<TopicPartition, TopicPartitionState> assignment;
 
-    /* do we need to request a partition assignment from the coordinator? */
+    /* do we need to request a partition assignment from the coordinator? 我们是否需要向协调器请求分区分配*/
     private boolean needsPartitionAssignment;
 
     /* do we need to request the latest committed offsets from the coordinator? */
@@ -280,9 +280,15 @@ public class SubscriptionState {
         return this.assignment.keySet();
     }
 
+    /**
+     * 可以拉取消息的分区
+     * @return Set<TopicPartition>
+     */
     public Set<TopicPartition> fetchablePartitions() {
         Set<TopicPartition> fetchable = new HashSet<>();
+        //遍历当前分配的分区列表
         for (Map.Entry<TopicPartition, TopicPartitionState> entry : assignment.entrySet()) {
+            //主题分区可以拉取
             if (entry.getValue().isFetchable())
                 fetchable.add(entry.getKey());
         }
@@ -338,6 +344,10 @@ public class SubscriptionState {
         return true;
     }
 
+    /**
+     * 返回丢失位置的主题分区
+     * @return Set<TopicPartition>
+     */
     public Set<TopicPartition> missingFetchPositions() {
         Set<TopicPartition> missing = new HashSet<>();
         for (Map.Entry<TopicPartition, TopicPartitionState> entry : assignment.entrySet())
@@ -379,7 +389,7 @@ public class SubscriptionState {
     }
 
     private static class TopicPartitionState {
-        private Long position; // last consumed position
+        private Long position; // last consumed position 最后消耗的位置
         private OffsetAndMetadata committed;  // last committed position
         private boolean paused;  // whether this partition has been paused by the user
         private OffsetResetStrategy resetStrategy;  // the strategy to use if the offset needs resetting
