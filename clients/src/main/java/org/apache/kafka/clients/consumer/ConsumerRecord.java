@@ -58,17 +58,17 @@ public final class ConsumerRecord<K, V> {
 
     /**
      * Creates a record to be received from a specified topic and partition
-     *
-     * @param topic The topic this record is received from
-     * @param partition The partition of the topic this record is received from
-     * @param offset The offset of this record in the corresponding Kafka partition
-     * @param timestamp The timestamp of the record.
-     * @param timestampType The timestamp type
-     * @param checksum The checksum (CRC32) of the full record
-     * @param serializedKeySize The length of the serialized key
-     * @param serializedValueSize The length of the serialized value
-     * @param key The key of the record, if one exists (null is allowed)
-     * @param value The record contents
+     * 创建要从指定主题和分区接收的记录
+     * @param topic The topic this record is received from 接收此记录的主题
+     * @param partition The partition of the topic this record is received from 接收此记录的主题的分区
+     * @param offset The offset of this record in the corresponding Kafka partition 此记录在相应 Kafka 分区中的偏移量
+     * @param timestamp The timestamp of the record. 记录的时间戳
+     * @param timestampType The timestamp type 时间戳类型
+     * @param checksum The checksum (CRC32) of the full record 完整记录的校验和 (CRC32)
+     * @param serializedKeySize The length of the serialized key 序列化密钥的长度
+     * @param serializedValueSize The length of the serialized value 序列化值的长度
+     * @param key The key of the record, if one exists (null is allowed) 记录的键，如果存在（允许为空）
+     * @param value The record contents 记录内容
      */
     public ConsumerRecord(String topic,
                           int partition,

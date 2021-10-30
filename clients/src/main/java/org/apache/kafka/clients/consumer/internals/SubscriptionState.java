@@ -252,6 +252,11 @@ public class SubscriptionState {
         return state;
     }
 
+    /**
+     * 设置主题分区的已提交偏移量
+     * @param tp 主题分区
+     * @param offset 偏移量
+     */
     public void committed(TopicPartition tp, OffsetAndMetadata offset) {
         assignedState(tp).committed(offset);
     }
@@ -295,6 +300,10 @@ public class SubscriptionState {
         return fetchable;
     }
 
+    /**
+     * 是否已开启分区自动分配
+     * @return boolean
+     */
     public boolean partitionsAutoAssigned() {
         return this.subscriptionType == SubscriptionType.AUTO_TOPICS || this.subscriptionType == SubscriptionType.AUTO_PATTERN;
     }
@@ -303,6 +312,11 @@ public class SubscriptionState {
         assignedState(tp).position(offset);
     }
 
+    /**
+     * 当前主题分区拉取位置
+     * @param tp 主题分区
+     * @return 拉取位置
+     */
     public Long position(TopicPartition tp) {
         return assignedState(tp).position;
     }
@@ -329,6 +343,11 @@ public class SubscriptionState {
         return defaultResetStrategy != OffsetResetStrategy.NONE;
     }
 
+    /**
+     * 是否需要重置偏移
+     * @param partition 主题分区
+     * @return boolean
+     */
     public boolean isOffsetResetNeeded(TopicPartition partition) {
         return assignedState(partition).awaitingReset();
     }
@@ -337,6 +356,10 @@ public class SubscriptionState {
         return assignedState(partition).resetStrategy;
     }
 
+    /**
+     * 是否所有主题分区的拉取位置正确
+     * @return boolean
+     */
     public boolean hasAllFetchPositions() {
         for (TopicPartitionState state : assignment.values())
             if (!state.hasValidPosition())
@@ -389,10 +412,10 @@ public class SubscriptionState {
     }
 
     private static class TopicPartitionState {
-        private Long position; // last consumed position 最后消耗的位置
-        private OffsetAndMetadata committed;  // last committed position
-        private boolean paused;  // whether this partition has been paused by the user
-        private OffsetResetStrategy resetStrategy;  // the strategy to use if the offset needs resetting
+        private Long position; // last consumed position 最后消费位置
+        private OffsetAndMetadata committed;  // last committed position 最后提交位置
+        private boolean paused;  // whether this partition has been paused by the user 此分区是否已被用户暂停
+        private OffsetResetStrategy resetStrategy;  // the strategy to use if the offset needs resetting 偏移量需要重置时使用的策略
 
         public TopicPartitionState() {
             this.paused = false;
@@ -410,6 +433,10 @@ public class SubscriptionState {
             return resetStrategy != null;
         }
 
+        /**
+         * 是否有效位置
+         * @return
+         */
         public boolean hasValidPosition() {
             return position != null;
         }

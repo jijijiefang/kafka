@@ -60,14 +60,14 @@ public class FetchRequest extends AbstractRequest {
     }
 
     /**
-     * Create a non-replica fetch request
+     * Create a non-replica fetch request 创建非副本获取请求
      */
     public FetchRequest(int maxWait, int minBytes, Map<TopicPartition, PartitionData> fetchData) {
         this(CONSUMER_REPLICA_ID, maxWait, minBytes, fetchData);
     }
 
     /**
-     * Create a replica fetch request
+     * Create a replica fetch request 创建副本拉取请求
      */
     public FetchRequest(int replicaId, int maxWait, int minBytes, Map<TopicPartition, PartitionData> fetchData) {
         super(new Struct(CURRENT_SCHEMA));

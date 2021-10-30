@@ -31,6 +31,7 @@ import java.util.Map;
 
 /**
  * This wrapper supports both v0 and v1 of FetchResponse.
+ * 拉取响应
  */
 public class FetchResponse extends AbstractRequestResponse {
     
@@ -68,9 +69,15 @@ public class FetchResponse extends AbstractRequestResponse {
     private final Map<TopicPartition, PartitionData> responseData;
     private final int throttleTime;
 
+    /**
+     * 分区的数据
+     */
     public static final class PartitionData {
+        //分区拉取的相应结果，Errors.NONE 表示请求成功
         public final short errorCode;
+        //Broker端关于该分区的高水位线，即小于该偏移量的消息对于消费端是可见的
         public final long highWatermark;
+        //
         public final ByteBuffer recordSet;
 
         public PartitionData(short errorCode, long highWatermark, ByteBuffer recordSet) {

@@ -174,6 +174,7 @@ public abstract class AbstractCoordinator implements Closeable {
 
     /**
      * Block until the coordinator for this group is known and is ready to receive requests.
+     * 阻塞直到该组的协调器已知并准备好接收请求
      */
     public void ensureCoordinatorReady() {
         while (coordinatorUnknown()) {
@@ -221,11 +222,12 @@ public abstract class AbstractCoordinator implements Closeable {
     }
 
     /**
-     * Ensure that the group is active (i.e. joined and synced)
+     * Ensure that the group is active (i.e. joined and synced) 确保该消费组处于活动状态（即加入并同步）
      */
     public void ensureActiveGroup() {
         // always ensure that the coordinator is ready because we may have been disconnected
         // when sending heartbeats and does not necessarily require us to rejoin the group.
+        // 始终确保协调器已准备就绪，因为我们在发送心跳时可能已断开连接，并且不一定需要我们重新加入该组
         ensureCoordinatorReady();
 
         if (!needRejoin())
@@ -278,6 +280,9 @@ public abstract class AbstractCoordinator implements Closeable {
         }
     }
 
+    /**
+     * 心跳任务
+     */
     private class HeartbeatTask implements DelayedTask {
 
         private boolean requestInFlight = false;

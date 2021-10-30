@@ -311,15 +311,17 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
     }
 
     /**
-     * Refresh the committed offsets for provided partitions.
+     * Refresh the committed offsets for provided partitions. 刷新提供的分区的提交偏移量
      */
     public void refreshCommittedOffsetsIfNeeded() {
         if (subscriptions.refreshCommitsNeeded()) {
+            //从协调器中获取主题分区的当前提交偏移量
             Map<TopicPartition, OffsetAndMetadata> offsets = fetchCommittedOffsets(subscriptions.assignedPartitions());
             for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {
                 TopicPartition tp = entry.getKey();
-                // verify assignment is still active
+                // verify assignment is still active 验证分配仍然有效
                 if (subscriptions.isAssigned(tp))
+                    //设置主题分区偏移量
                     this.subscriptions.committed(tp, entry.getValue());
             }
             this.subscriptions.commitsRefreshed();
@@ -327,15 +329,16 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
     }
 
     /**
-     * Fetch the current committed offsets from the coordinator for a set of partitions.
+     * Fetch the current committed offsets from the coordinator for a set of partitions.从协调器中获取主题分区的当前提交偏移量
      * @param partitions The partitions to fetch offsets for
      * @return A map from partition to the committed offset
      */
     public Map<TopicPartition, OffsetAndMetadata> fetchCommittedOffsets(Set<TopicPartition> partitions) {
         while (true) {
+            //阻塞直到该组的协调器已知并准备好接收请求
             ensureCoordinatorReady();
 
-            // contact coordinator to fetch committed offsets
+            // contact coordinator to fetch committed offsets 联系协调器以获取已提交的偏移量
             RequestFuture<Map<TopicPartition, OffsetAndMetadata>> future = sendOffsetFetchRequest(partitions);
             client.poll(future);
 
@@ -361,6 +364,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
             // track of the fact that we need to rebalance again to reflect the change to the topic subscription. Without
             // ensuring that the metadata is fresh, any metadata update that changes the topic subscriptions and arrives with a
             // rebalance in progress will essentially be ignored. See KAFKA-3949 for the complete description of the problem.
+            //确保元数据是新鲜的(如果需要更新，则会阻塞直到完成)
             if (subscriptions.hasPatternSubscription())
                 client.ensureFreshMetadata();
 
@@ -463,6 +467,9 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
         }
     }
 
+    /**
+     * 自动提交任务
+     */
     private class AutoCommitTask implements DelayedTask {
         private final long interval;
 
@@ -648,7 +655,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
     /**
      * Fetch the committed offsets for a set of partitions. This is a non-blocking call. The
      * returned future can be polled to get the actual offsets returned from the broker.
-     *
+     * 获取一组分区的提交偏移量
      * @param partitions The set of partitions to get offsets for.
      * @return A request future containing the committed offsets.
      */
@@ -657,10 +664,10 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
             return RequestFuture.coordinatorNotAvailable();
 
         log.debug("Group {} fetching committed offsets for partitions: {}", groupId, partitions);
-        // construct the request
+        // construct the request 组装请求
         OffsetFetchRequest request = new OffsetFetchRequest(this.groupId, new ArrayList<>(partitions));
 
-        // send the request with a callback
+        // send the request with a callback 使用回调发送请求
         return client.send(coordinator, ApiKeys.OFFSET_FETCH, request)
                 .compose(new OffsetFetchResponseHandler());
     }

@@ -48,6 +48,7 @@ public class ConsumerNetworkClient implements Closeable {
     private final KafkaClient client;
     private final AtomicBoolean wakeup = new AtomicBoolean(false);
     private final DelayedTaskQueue delayedTasks = new DelayedTaskQueue();
+    //每个节点关联的待发送的请求集合
     private final Map<Node, List<ClientRequest>> unsent = new HashMap<>();
     private final Metadata metadata;
     private final Time time;
@@ -90,6 +91,7 @@ public class ConsumerNetworkClient implements Closeable {
     }
 
     /**
+     * 发送新请求
      * Send a new request. Note that the request is not actually transmitted on the
      * network until one of the {@link #poll(long)} variants is invoked. At this
      * point the request will either be transmitted successfully or will fail.
@@ -112,12 +114,20 @@ public class ConsumerNetworkClient implements Closeable {
         return future;
     }
 
+    /**
+     * 拉取请求放入待发送集合
+     * @param node Broker节点
+     * @param request 拉取请求
+     */
     private void put(Node node, ClientRequest request) {
+        //查找当前Broker节点的待发送请求集合
         List<ClientRequest> nodeUnsent = unsent.get(node);
+        //如果unsent中没有则放入一个
         if (nodeUnsent == null) {
             nodeUnsent = new ArrayList<>();
             unsent.put(node, nodeUnsent);
         }
+        //放入此Broker节点关联的待发送集合
         nodeUnsent.add(request);
     }
 
@@ -208,6 +218,7 @@ public class ConsumerNetworkClient implements Closeable {
     /**
      * Poll for network IO and return immediately. This will not trigger wakeups,
      * nor will it execute any delayed tasks.
+     * 轮询网络IO并立即返回
      */
     public void pollNoWakeup() {
         disableWakeups();

@@ -932,7 +932,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
             if (timeout < 0)
                 throw new IllegalArgumentException("Timeout must not be negative");
 
-            // poll for new data until the timeout expires
+            // poll for new data until the timeout expires 轮询新数据直到超时到期
             long start = time.milliseconds();
             long remaining = timeout;
             do {
@@ -941,11 +941,12 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
                     // before returning the fetched records, we can send off the next round of fetches
                     // and avoid block waiting for their responses to enable pipelining while the user
                     // is handling the fetched records.
-                    //
+                    // 在返回获取的记录之前，我们可以发送下一轮获取并避免在用户处理获取的记录时阻塞等待他们的响应以启用流水线
                     // NOTE: since the consumed position has already been updated, we must not allow
                     // wakeups or any other errors to be triggered prior to returning the fetched records.
                     // Additionally, pollNoWakeup does not allow automatic commits to get triggered.
                     fetcher.sendFetches();
+                    //轮询网络IO并立即返回
                     client.pollNoWakeup();
 
                     if (this.interceptors == null)
@@ -993,7 +994,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
         // then just return it immediately 如果数据已经可用，例如从之前的网络客户端 poll() 调用提交，然后立即返回它
         if (!records.isEmpty())
             return records;
-
+        //如果此次拉取数据为空再次拉取
         fetcher.sendFetches();
         client.poll(timeout, now);
         return fetcher.fetchedRecords();
@@ -1408,7 +1409,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
         // the user is manually assigning partitions and managing their own offsets).
         //如果需要重置主题分区的偏移量
         fetcher.resetOffsetsIfNeeded(partitions);
-
+        //否所有主题分区的拉取位置正确
         if (!subscriptions.hasAllFetchPositions()) {
             // if we still don't have offsets for all partitions, then we should either seek
             // to the last committed position or reset using the auto reset policy
@@ -1422,7 +1423,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
     }
 
     /*
-     * Check that the consumer hasn't been closed.
+     * Check that the consumer hasn't been closed. 检查此消费者还没有被关闭
      */
     private void ensureNotClosed() {
         if (this.closed)
@@ -1433,12 +1434,15 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * Acquire the light lock protecting this consumer from multi-threaded access. Instead of blocking
      * when the lock is not available, however, we just throw an exception (since multi-threaded usage is not
      * supported).
+     * 获取轻量级锁，以保护此消费者免受多线程访问
      * @throws IllegalStateException if the consumer has been closed
      * @throws ConcurrentModificationException if another thread already has the lock
      */
     private void acquire() {
+        //检查此消费者还没有被关闭
         ensureNotClosed();
         long threadId = Thread.currentThread().getId();
+        //检查是否是多线程调用
         if (threadId != currentThread.get() && !currentThread.compareAndSet(NO_CURRENT_THREAD, threadId))
             throw new ConcurrentModificationException("KafkaConsumer is not safe for multi-threaded access");
         refcount.incrementAndGet();

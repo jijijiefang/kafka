@@ -266,6 +266,7 @@ public final class Record {
 
     /**
      * Returns true if the crc stored with the record matches the crc computed off the record contents
+     * 如果与记录一起存储的 crc 与根据记录内容计算的 crc 匹配，则返回 true
      */
     public boolean isValid() {
         return checksum() == computeChecksum();
