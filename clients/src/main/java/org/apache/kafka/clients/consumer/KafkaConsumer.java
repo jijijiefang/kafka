@@ -505,18 +505,27 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
     private static final String JMX_PREFIX = "kafka.consumer";
 
     private final String clientId;
+    //消费协调器,每一个消费组在集群中会选举一个节点成为该消费组的协调器，负责消费组状态的状态管理，尤其是消费组重平衡(消费者的加入与退出)，该类就是消费者与broker协调器进行交互
     private final ConsumerCoordinator coordinator;
+    //key 序列化器
     private final Deserializer<K> keyDeserializer;
+    //值序列化器
     private final Deserializer<V> valueDeserializer;
+    //消息拉取
     private final Fetcher<K, V> fetcher;
     private final ConsumerInterceptors<K, V> interceptors;
 
     private final Time time;
+    //网络通讯客户端 服务底层网络通讯，负责客户端与服务端的RPC通信
     private final ConsumerNetworkClient client;
     private final Metrics metrics;
+    //用于管理订阅状态的类，用于跟踪 topics, partitions, offsets 等信息
     private final SubscriptionState subscriptions;
+    //消费者元数据信息，包含路由信息
     private final Metadata metadata;
+    //如果向Broker发送请求失败后，发起重试之前需要等待的间隔时间，通过属性retry.backoff.ms指定
     private final long retryBackoffMs;
+    //一次请求的超时时间
     private final long requestTimeoutMs;
     private boolean closed = false;
 
