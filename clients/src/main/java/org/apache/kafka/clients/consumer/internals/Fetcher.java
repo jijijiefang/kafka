@@ -506,7 +506,7 @@ public class Fetcher<K, V> {
         Cluster cluster = metadata.fetch();
         Map<Node, Map<TopicPartition, FetchRequest.PartitionData>> fetchable = new HashMap<>();
         for (TopicPartition partition : fetchablePartitions()) {
-            //
+            //获取给定主题分区的当前领导者
             Node node = cluster.leaderFor(partition);
             if (node == null) {
                 metadata.requestUpdate();
