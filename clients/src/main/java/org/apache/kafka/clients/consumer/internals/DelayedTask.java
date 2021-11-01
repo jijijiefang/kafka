@@ -13,7 +13,9 @@
 
 package org.apache.kafka.clients.consumer.internals;
 
-
+/**
+ * 延时任务
+ */
 public interface DelayedTask {
 
     /**

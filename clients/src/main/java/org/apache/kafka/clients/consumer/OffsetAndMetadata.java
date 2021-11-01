@@ -18,11 +18,11 @@ import java.io.Serializable;
  * The Kafka offset commit API allows users to provide additional metadata (in the form of a string)
  * when an offset is committed. This can be useful (for example) to store information about which
  * node made the commit, what time the commit was made, etc.
+ * Kafka 偏移提交 API 允许用户在提交偏移时提供额外的元数据（以字符串的形式）。
+ * 这对于（例如）存储有关哪个节点进行了提交、提交的时间等信息很有用
  */
 public class OffsetAndMetadata implements Serializable {
     private final long offset;
-    private final String metadata;
-
     /**
      * Construct a new OffsetAndMetadata object for committing through {@link KafkaConsumer}.
      * @param offset The offset to be committed
@@ -32,6 +32,8 @@ public class OffsetAndMetadata implements Serializable {
         this.offset = offset;
         this.metadata = metadata;
     }
+
+    private final String metadata;
 
     /**
      * Construct a new OffsetAndMetadata object for committing through {@link KafkaConsumer}. The metadata

@@ -68,26 +68,41 @@ import java.util.Set;
 
 /**
  * This class manage the fetching process with the brokers.
+ * 消息拉取处理类
  */
 public class Fetcher<K, V> {
 
     private static final Logger log = LoggerFactory.getLogger(Fetcher.class);
-
+    //消费端网络客户端，Kafka 负责网络通讯实现类
     private final ConsumerNetworkClient client;
     private final Time time;
+    //一次消息拉取需要拉取的最小字节数，默认值为1字节，如果增大这个值会增大吞吐，但会增加延迟，可以通参数 fetch.min.bytes 改变其默认值
     private final int minBytes;
+    //一次消息拉取允许拉取的最大字节数，但这不是绝对的，如果一个分区的第一批记录超过了该值，也会返回。
+    //默认为50M,可通过参数 fetch.max.bytes 改变其默认值。同时不能超过 broker的配置参数(message.max.bytes) 和 主题级别的配置(max.message.bytes)
     private final int maxWaitMs;
+    //每一个分区返回的最大消息字节数，如果分区中的第一批消息大于 fetchSize 也会返回
     private final int fetchSize;
+    //失败重试后需要阻塞的时间，默认为 100 ms，可通过参数 retry.backoff.ms 定制
     private final long retryBackoffMs;
+    //单次拉取返回的最大记录数，默认值 500，可通过参数 max.poll.records 进行定制
     private final int maxPollRecords;
+    //是否检查消息的 crcs 校验和，默认为 true，可通过参数 check.crcs 进行定制
     private final boolean checkCrcs;
+    //元数据
     private final Metadata metadata;
+    //消息拉取的统计服务类
     private final FetchManagerMetrics sensors;
+    //订阅信息状态
     private final SubscriptionState subscriptions;
+    //已经完成的拉取,已完成的 Fetch 的请求结果，待消费端从中取出数据
     private final List<CompletedFetch> completedFetches;
+    //key 的反序列化器
     private final Deserializer<K> keyDeserializer;
+    //value 的反序列化器
     private final Deserializer<V> valueDeserializer;
 
+    //循环遍历处理已完成主题分区数据中间变量
     private PartitionRecords<K, V> nextInLineRecords = null;
 
     public Fetcher(ConsumerNetworkClient client,
@@ -128,8 +143,10 @@ public class Fetcher<K, V> {
     public void sendFetches() {
         for (Map.Entry<Node, FetchRequest> fetchEntry: createFetchRequests().entrySet()) {
             final FetchRequest request = fetchEntry.getValue();
+            //拉取请求放入待发送集合设置回调
             client.send(fetchEntry.getKey(), ApiKeys.FETCH, request)
                     .addListener(new RequestFutureListener<ClientResponse>() {
+                        //拉取成功
                         @Override
                         public void onSuccess(ClientResponse resp) {
                             FetchResponse response = new FetchResponse(resp.responseBody());
@@ -138,8 +155,10 @@ public class Fetcher<K, V> {
 
                             for (Map.Entry<TopicPartition, FetchResponse.PartitionData> entry : response.responseData().entrySet()) {
                                 TopicPartition partition = entry.getKey();
+                                //拉取请求起始偏移量
                                 long fetchOffset = request.fetchData().get(partition).offset;
                                 FetchResponse.PartitionData fetchData = entry.getValue();
+                                //设置完成拉取
                                 completedFetches.add(new CompletedFetch(partition, fetchOffset, fetchData, metricAggregator));
                             }
 
@@ -164,6 +183,7 @@ public class Fetcher<K, V> {
         for (TopicPartition tp : partitions) {
             // TODO: If there are several offsets to reset, we could submit offset requests in parallel
             if (subscriptions.isAssigned(tp) && subscriptions.isOffsetResetNeeded(tp))
+                //使用偏移重置策略重置给定分区的偏移
                 resetOffset(tp);
         }
     }
@@ -179,8 +199,9 @@ public class Fetcher<K, V> {
         for (TopicPartition tp : partitions) {
             if (!subscriptions.isAssigned(tp) || subscriptions.isFetchable(tp))
                 continue;
-
+            //是否需要重置偏移
             if (subscriptions.isOffsetResetNeeded(tp)) {
+                //使用偏移重置策略重置给定分区的偏移
                 resetOffset(tp);
             } else if (subscriptions.committed(tp) == null) {
                 // there's no committed position, so we need to reset with the default strategy
@@ -294,11 +315,12 @@ public class Fetcher<K, V> {
 
     /**
      * Reset offsets for the given partition using the offset reset strategy.
-     *
+     * 使用偏移重置策略重置给定分区的偏移
      * @param partition The given partition that needs reset offset
      * @throws org.apache.kafka.clients.consumer.NoOffsetForPartitionException If no offset reset strategy is defined
      */
     private void resetOffset(TopicPartition partition) {
+        //重置策略
         OffsetResetStrategy strategy = subscriptions.resetStrategy(partition);
         final long timestamp;
         if (strategy == OffsetResetStrategy.EARLIEST)
@@ -309,22 +331,24 @@ public class Fetcher<K, V> {
             throw new NoOffsetForPartitionException(partition);
 
         log.debug("Resetting offset for partition {} to {} offset.", partition, strategy.name().toLowerCase(Locale.ROOT));
+        //获取主题分区偏移量
         long offset = listOffset(partition, timestamp);
 
-        // we might lose the assignment while fetching the offset, so check it is still active
+        // we might lose the assignment while fetching the offset, so check it is still active 我们可能会在获取偏移量时丢失分配，因此请检查它是否仍然处于活动状态
         if (subscriptions.isAssigned(partition))
             this.subscriptions.seek(partition, offset);
     }
 
     /**
      * Fetch a single offset before the given timestamp for the partition.
-     *
+     * 在分区的给定时间戳之前获取单个偏移量
      * @param partition The partition that needs fetching offset.
      * @param timestamp The timestamp for fetching offset.
      * @return The offset of the message that is published before the given timestamp
      */
     private long listOffset(TopicPartition partition, long timestamp) {
         while (true) {
+            //获取指定主题分区的偏移量
             RequestFuture<Long> future = sendListOffsetRequest(partition, timestamp);
             client.poll(future);
 
@@ -343,9 +367,9 @@ public class Fetcher<K, V> {
 
     /**
      * Return the fetched records, empty the record buffer and update the consumed position.
-     * 返回获取的记录，清空记录缓冲区并更新消耗的位置。 注意：返回空记录保证消耗的位置不会更新。
+     * 返回获取的记录，清空记录缓冲区并更新消耗的位置。
      * NOTE: returning empty records guarantees the consumed position are NOT updated.
-     *
+     * 注意：返回空记录保证消耗的位置不会更新。
      * @return The fetched records per partition
      * @throws OffsetOutOfRangeException If there is OffsetOutOfRange error in fetchResponse and
      *         the defaultResetPolicy is NONE
@@ -356,18 +380,22 @@ public class Fetcher<K, V> {
             return Collections.emptyMap();
         } else {
             Map<TopicPartition, List<ConsumerRecord<K, V>>> drained = new HashMap<>();
+            //
             int recordsRemaining = maxPollRecords;
             Iterator<CompletedFetch> completedFetchesIterator = completedFetches.iterator();
 
             while (recordsRemaining > 0) {
+                //解析拉取数据遍历中间变量
                 if (nextInLineRecords == null || nextInLineRecords.isEmpty()) {
                     if (!completedFetchesIterator.hasNext())
                         break;
-
+                    //遍历
                     CompletedFetch completion = completedFetchesIterator.next();
                     completedFetchesIterator.remove();
+                    //处理拉取的数据赋值给中间变量
                     nextInLineRecords = parseFetchedData(completion);
                 } else {
+                    //每个主题分区数据放入drained
                     recordsRemaining -= append(drained, nextInLineRecords, recordsRemaining);
                 }
             }
@@ -376,12 +404,19 @@ public class Fetcher<K, V> {
         }
     }
 
+    /**
+     * 处理主题分区的拉取记录放入drained
+     * @param drained
+     * @param partitionRecords 主题分区记录
+     * @param maxRecords 剩余拉取总记录数
+     * @return
+     */
     private int append(Map<TopicPartition, List<ConsumerRecord<K, V>>> drained,
                        PartitionRecords<K, V> partitionRecords,
                        int maxRecords) {
         if (partitionRecords.isEmpty())
             return 0;
-
+        //不包含当前主题分区
         if (!subscriptions.isAssigned(partitionRecords.partition)) {
             // this can happen when a rebalance happened before fetched records are returned to the consumer's poll call
             log.debug("Not returning fetched records for partition {} since it is no longer assigned", partitionRecords.partition);
@@ -394,6 +429,7 @@ public class Fetcher<K, V> {
             } else if (partitionRecords.fetchOffset == position) {
                 // we are ensured to have at least one record since we already checked for emptiness
                 List<ConsumerRecord<K, V>> partRecords = partitionRecords.take(maxRecords);
+                //最后一条消息的偏移量+1
                 long nextOffset = partRecords.get(partRecords.size() - 1).offset() + 1;
 
                 log.trace("Returning fetched records at offset {} for assigned partition {} and update " +
@@ -406,7 +442,7 @@ public class Fetcher<K, V> {
                 } else {
                     records.addAll(partRecords);
                 }
-
+                //设置此主题分区的拉取位置为nextOffset
                 subscriptions.position(partitionRecords.partition, nextOffset);
                 return partRecords.size();
             } else {
@@ -423,7 +459,7 @@ public class Fetcher<K, V> {
 
     /**
      * Fetch a single offset before the given timestamp for the partition.
-     *
+     * 在分区的给定时间戳之前获取单个偏移量
      * @param topicPartition The partition that needs fetching offset.
      * @param timestamp The timestamp for fetching offset.
      * @return A response which can be polled to obtain the corresponding offset.
@@ -442,6 +478,7 @@ public class Fetcher<K, V> {
         } else {
             Node node = info.leader();
             ListOffsetRequest request = new ListOffsetRequest(-1, partitions);
+            //发送获取偏移量请求
             return client.send(node, ApiKeys.LIST_OFFSETS, request)
                     .compose(new RequestFutureAdapter<ClientResponse, Long>() {
                         @Override
@@ -453,7 +490,7 @@ public class Fetcher<K, V> {
     }
 
     /**
-     * Callback for the response of the list offset call above.
+     * Callback for the response of the list offset call above. 列表偏移调用响应的回调
      * @param topicPartition The partition that was fetched
      * @param clientResponse The response from the server.
      */
@@ -509,6 +546,7 @@ public class Fetcher<K, V> {
             //获取给定主题分区的当前领导者
             Node node = cluster.leaderFor(partition);
             if (node == null) {
+                //如果领导者为空，更新元数据
                 metadata.requestUpdate();
             } else if (this.client.pendingRequestCount(node) == 0) {
                 // if there is a leader and no in-flight requests, issue a new fetch 如果有领导者并且没有进行中的请求，则发出新的拉取
@@ -517,7 +555,7 @@ public class Fetcher<K, V> {
                     fetch = new HashMap<>();
                     fetchable.put(node, fetch);
                 }
-
+                //最后消费位置
                 long position = this.subscriptions.position(partition);
                 fetch.put(partition, new FetchRequest.PartitionData(position, this.fetchSize));
                 log.trace("Added fetch request for partition {} at offset {}", partition, position);
@@ -535,25 +573,30 @@ public class Fetcher<K, V> {
     }
 
     /**
-     * The callback for fetch completion
+     * The callback for fetch completion 获取完成的回调，处理拉取的数据
      */
     private PartitionRecords<K, V> parseFetchedData(CompletedFetch completedFetch) {
         TopicPartition tp = completedFetch.partition;
         FetchResponse.PartitionData partition = completedFetch.partitionData;
+        //主题分区拉取的偏移量
         long fetchOffset = completedFetch.fetchedOffset;
         int bytes = 0;
         int recordsCount = 0;
         PartitionRecords<K, V> parsedRecords = null;
 
         try {
+            //判断该分区是否可拉取
             if (!subscriptions.isFetchable(tp)) {
                 // this can happen when a rebalance happened or a partition consumption paused
-                // while fetch is still in-flight
+                // while fetch is still in-flight 这可能发生在重新平衡发生或分区消耗暂停而提取仍在进行中时
                 log.debug("Ignoring fetched records for partition {} since it is no longer fetchable", tp);
+            //正确返回结果
             } else if (partition.errorCode == Errors.NONE.code()) {
                 // we are interested in this fetch only if the beginning offset matches the
-                // current consumed position
+                // current consumed position 只有当开始偏移量与当前消耗的位置匹配时，我们才对这个获取感兴趣
+                //主题分区拉取为位置
                 Long position = subscriptions.position(tp);
+                //如果当前针对该队列的消费位移与发起 fetch 请求时的 偏移量不一致，则认为本次拉取非法
                 if (position == null || position != fetchOffset) {
                     log.debug("Discarding stale fetch response for partition {} since its offset {} does not match " +
                             "the expected offset {}", tp, fetchOffset, position);
@@ -565,8 +608,9 @@ public class Fetcher<K, V> {
                 List<ConsumerRecord<K, V>> parsed = new ArrayList<>();
                 boolean skippedRecords = false;
                 for (LogEntry logEntry : records) {
-                    // Skip the messages earlier than current position.
+                    // Skip the messages earlier than current position. 跳过比当前位置更早的消息
                     if (logEntry.offset() >= position) {
+                        //解析消息条目放入已解析消息条目集合
                         parsed.add(parseRecord(tp, logEntry));
                         bytes += logEntry.size();
                     } else {
@@ -576,7 +620,7 @@ public class Fetcher<K, V> {
 
                 recordsCount = parsed.size();
                 this.sensors.recordTopicFetchMetrics(tp.topic(), bytes, recordsCount);
-
+                //已解析消息条目集合不为空
                 if (!parsed.isEmpty()) {
                     log.trace("Adding fetched record for partition {} with offset {} to buffered record list", tp, position);
                     parsedRecords = new PartitionRecords<>(fetchOffset, tp, parsed);
@@ -626,10 +670,11 @@ public class Fetcher<K, V> {
 
     /**
      * Parse the record entry, deserializing the key / value fields if necessary
+     * 解析记录条目，必要时反序列化键/值字段
      */
     private ConsumerRecord<K, V> parseRecord(TopicPartition partition, LogEntry logEntry) {
         Record record = logEntry.record();
-
+        //校验CRC
         if (this.checkCrcs && !record.isValid())
             throw new KafkaException("Record for partition " + partition + " at offset "
                     + logEntry.offset() + " is corrupt (stored crc = " + record.checksum()
@@ -659,8 +704,14 @@ public class Fetcher<K, V> {
         }
     }
 
+    /**
+     * 主题分区消息记录集
+     * @param <K>
+     * @param <V>
+     */
     private static class PartitionRecords<K, V> {
         private long fetchOffset;
+        //分区信息
         private TopicPartition partition;
         private List<ConsumerRecord<K, V>> records;
 
@@ -702,10 +753,17 @@ public class Fetcher<K, V> {
         }
     }
 
+    /**
+     * 完成的拉取
+     */
     private static class CompletedFetch {
+        //主题分区
         private final TopicPartition partition;
+        //本次拉取的开始偏移量
         private final long fetchedOffset;
+        //分区数据
         private final FetchResponse.PartitionData partitionData;
+        //统计指标相关
         private final FetchResponseMetricAggregator metricAggregator;
 
         public CompletedFetch(TopicPartition partition,
