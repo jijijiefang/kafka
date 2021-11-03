@@ -26,6 +26,7 @@ import org.apache.kafka.common.utils.Utils
 
 /**
  * A thread that answers kafka requests.
+ * 处理Kafka请求的线程
  */
 class KafkaRequestHandler(id: Int,
                           brokerId: Int,
@@ -57,6 +58,7 @@ class KafkaRequestHandler(id: Int,
         }
         req.requestDequeueTimeMs = SystemTime.milliseconds
         trace("Kafka request handler %d on broker %d handling request %s".format(id, brokerId, req))
+        //处理请求
         apis.handle(req)
       } catch {
         case e: Throwable => error("Exception when handling request", e)

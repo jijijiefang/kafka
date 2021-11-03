@@ -43,6 +43,7 @@ import JavaConverters._
 import scala.util.control.{ControlThrowable, NonFatal}
 
 /**
+ * NIO套接字服务器
  * An NIO socket server. The threading model is
  *   1 Acceptor thread that handles new connections
  *   Acceptor has N Processor threads that each have their own selector and read requests from sockets
@@ -77,10 +78,11 @@ class SocketServer(val config: KafkaConfig, val metrics: Metrics, val time: Time
    */
   def startup() {
     this.synchronized {
-
+      //连接配额管理
       connectionQuotas = new ConnectionQuotas(maxConnectionsPerIp, maxConnectionsPerIpOverrides)
-
+      //发送缓冲区大小
       val sendBufferSize = config.socketSendBufferBytes
+      //接收缓冲区大小
       val recvBufferSize = config.socketReceiveBufferBytes
       val brokerId = config.brokerId
 
@@ -575,6 +577,11 @@ private[kafka] class Processor(val id: Int,
 
 }
 
+/**
+ * 连接配额管理
+ * @param defaultMax
+ * @param overrideQuotas
+ */
 class ConnectionQuotas(val defaultMax: Int, overrideQuotas: Map[String, Int]) {
 
   private val overrides = overrideQuotas.map { case (host, count) => (InetAddress.getByName(host), count) }

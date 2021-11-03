@@ -293,7 +293,7 @@ class ByteBufferMessageSet(val buffer: ByteBuffer) extends MessageSet with Loggi
     shallowValidByteCount
   }
 
-  /** Write the messages in this set to the given channel */
+  /** Write the messages in this set to the given channel 将此集合中的消息写入给定通道*/
   def writeFullyTo(channel: GatheringByteChannel): Int = {
     buffer.mark()
     var written = 0

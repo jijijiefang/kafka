@@ -208,21 +208,27 @@ class RequestChannel(val numProcessors: Int, val queueSize: Int) extends KafkaMe
     requestQueue.put(request)
   }
 
-  /** Send a response back to the socket server to be sent over the network */
+
+
+  /**
+   * Send a response back to the socket server to be sent over the network
+   * 将响应发送回要通过网络发送的套接字服务器
+    * @param response 响应
+   */
   def sendResponse(response: RequestChannel.Response) {
     responseQueues(response.processor).put(response)
     for(onResponse <- responseListeners)
       onResponse(response.processor)
   }
 
-  /** No operation to take for the request, need to read more over the network */
+  /** No operation to take for the request, need to read more over the network 无需对请求执行任何操作，需要通过网络阅读更多内容*/
   def noOperation(processor: Int, request: RequestChannel.Request) {
     responseQueues(processor).put(new RequestChannel.Response(processor, request, null, RequestChannel.NoOpAction))
     for(onResponse <- responseListeners)
       onResponse(processor)
   }
 
-  /** Close the connection for the request */
+  /** Close the connection for the request 关闭请求的连接*/
   def closeConnection(processor: Int, request: RequestChannel.Request) {
     responseQueues(processor).put(new RequestChannel.Response(processor, request, null, RequestChannel.CloseConnectionAction))
     for(onResponse <- responseListeners)

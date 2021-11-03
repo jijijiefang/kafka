@@ -36,11 +36,12 @@ import scala.collection.mutable.ArrayBuffer
 /**
  * An on-disk message set. An optional start and end position can be applied to the message set
  * which will allow slicing a subset of the file.
- * @param file The file name for the underlying log data
- * @param channel the underlying file channel used
- * @param start A lower bound on the absolute position in the file from which the message set begins
- * @param end The upper bound on the absolute position in the file at which the message set ends
- * @param isSlice Should the start and end parameters be used for slicing?
+ * 磁盘上的消息集。可选的开始和结束位置可应用于消息集，这将允许对文件的子集进行切片
+ * @param file The file name for the underlying log data 基础日志数据的文件名
+ * @param channel the underlying file channel used 使用的底层文件通道
+ * @param start A lower bound on the absolute position in the file from which the message set begins 文件中消息集从其开始的绝对位置的下限
+ * @param end The upper bound on the absolute position in the file at which the message set ends 文件中消息集结束的绝对位置的上限
+ * @param isSlice Should the start and end parameters be used for slicing? 开始和结束参数是否应用于切片
  */
 @nonthreadsafe
 class FileMessageSet private[kafka](@volatile var file: File,
@@ -49,7 +50,7 @@ class FileMessageSet private[kafka](@volatile var file: File,
                                     private[log] val end: Int,
                                     isSlice: Boolean) extends MessageSet with Logging {
 
-  /* the size of the message set in bytes */
+  /* the size of the message set in bytes 消息集的大小*/
   private val _size =
     if(isSlice)
       new AtomicInteger(end - start) // don't check the file size if this is just a slice view
@@ -300,7 +301,7 @@ class FileMessageSet private[kafka](@volatile var file: File,
   }
 
   /**
-   * Commit all written data to the physical disk
+   * Commit all written data to the physical disk 将所有写入的数据提交到物理磁盘
    */
   def flush() = {
     channel.force(true)

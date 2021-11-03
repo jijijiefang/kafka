@@ -156,6 +156,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime, threadNamePr
   /**
    * Start up API for bringing up a single instance of the Kafka server.
    * Instantiates the LogManager, the SocketServer and the request handlers - KafkaRequestHandlers
+   * 启动用于启动Kafka服务器的单个实例的API。实例化LogManager、SocketServer和请求处理程序-KafkaRequestHandlers
    */
   def startup() {
     try {
@@ -173,24 +174,25 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime, threadNamePr
 
         brokerState.newState(Starting)
 
-        /* start scheduler */
+        /* start scheduler 启动延时任务线程池*/
         kafkaScheduler.startup()
 
-        /* setup zookeeper */
+        /* setup zookeeper 设置zookeeper*/
         zkUtils = initZk()
 
-        /* start log manager */
+        /* start log manager 启动消息管理器*/
         logManager = createLogManager(zkUtils.zkClient, brokerState)
         logManager.startup()
 
-        /* generate brokerId */
+        /* generate brokerId 生成BrokerId*/
         config.brokerId =  getBrokerId
         this.logIdent = "[Kafka Server " + config.brokerId + "], "
 
         socketServer = new SocketServer(config, metrics, kafkaMetricsTime)
+        //NIO套接字服务器启动
         socketServer.startup()
 
-        /* start replica manager */
+        /* start replica manager 副本管理器*/
         replicaManager = new ReplicaManager(config, metrics, time, kafkaMetricsTime, zkUtils, kafkaScheduler, logManager,
           isShuttingDown)
         replicaManager.startup()
@@ -199,7 +201,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime, threadNamePr
         kafkaController = new KafkaController(config, zkUtils, brokerState, kafkaMetricsTime, metrics, threadNamePrefix)
         kafkaController.startup()
 
-        /* start group coordinator */
+        /* start group coordinator 协调器*/
         groupCoordinator = GroupCoordinator(config, zkUtils, replicaManager, kafkaMetricsTime)
         groupCoordinator.startup()
 
@@ -210,7 +212,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime, threadNamePr
           authZ
         }
 
-        /* start processing requests */
+        /* start processing requests 请求处理器*/
         apis = new KafkaApis(socketServer.requestChannel, replicaManager, groupCoordinator,
           kafkaController, zkUtils, config.brokerId, config, metadataCache, metrics, authorizer)
         requestHandlerPool = new KafkaRequestHandlerPool(config.brokerId, socketServer.requestChannel, apis, config.numIoThreads)
@@ -228,7 +230,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime, threadNamePr
           case (clientId, properties) => dynamicConfigHandlers(ConfigType.Client).processConfigChanges(clientId, properties)
         }
 
-        // Create the config manager. start listening to notifications
+        // Create the config manager. start listening to notifications 动态配置管理类
         dynamicConfigManager = new DynamicConfigManager(zkUtils, dynamicConfigHandlers)
         dynamicConfigManager.startup()
 
@@ -239,7 +241,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime, threadNamePr
           else
             (protocol, endpoint)
         }
-        //注册/broker/ids/[0,N]
+        //注册/broker/ids/[0,N] 健康检查
         kafkaHealthcheck = new KafkaHealthcheck(config.brokerId, listeners, zkUtils, config.rack,
           config.interBrokerProtocolVersion)
         kafkaHealthcheck.startup()
@@ -266,6 +268,10 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime, threadNamePr
     }
   }
 
+  /**
+   *
+   * @return
+   */
   private def initZk(): ZkUtils = {
     info("Connecting to zookeeper on " + config.zkConnect)
 
@@ -591,6 +597,12 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime, threadNamePr
 
   def boundPort(protocol: SecurityProtocol = SecurityProtocol.PLAINTEXT): Int = socketServer.boundPort(protocol)
 
+  /**
+   * 创建消息文件管理器
+   * @param zkClient
+   * @param brokerState
+   * @return
+   */
   private def createLogManager(zkClient: ZkClient, brokerState: BrokerState): LogManager = {
     val defaultProps = KafkaServer.copyKafkaConfigToLog(config)
     val defaultLogConfig = LogConfig(defaultProps)
@@ -598,7 +610,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime, threadNamePr
     val configs = AdminUtils.fetchAllTopicConfigs(zkUtils).map { case (topic, configs) =>
       topic -> LogConfig.fromProps(defaultProps, configs)
     }
-    // read the log configurations from zookeeper
+    // read the log configurations from zookeeper 从zookeeper读取日志配置
     val cleanerConfig = CleanerConfig(numThreads = config.logCleanerThreads,
                                       dedupeBufferSize = config.logCleanerDedupeBufferSize,
                                       dedupeBufferLoadFactor = config.logCleanerDedupeBufferLoadFactor,
@@ -658,6 +670,10 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime, threadNamePr
     brokerId
   }
 
+  /**
+   *
+   * @param brokerId
+   */
   private def checkpointBrokerId(brokerId: Int) {
     var logDirsWithoutMetaProps: List[String] = List()
 

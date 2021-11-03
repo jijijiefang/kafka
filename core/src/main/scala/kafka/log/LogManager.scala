@@ -30,12 +30,13 @@ import java.util.concurrent.{ExecutionException, ExecutorService, Executors, Fut
 /**
  * The entry point to the kafka log management subsystem. The log manager is responsible for log creation, retrieval, and cleaning.
  * All read and write operations are delegated to the individual log instances.
- * 
+ * kafka日志管理子系统的入口点。日志管理器负责创建、检索和清理日志。所有读写操作都委派给各个日志实例。
  * The log manager maintains logs in one or more directories. New logs are created in the data directory
  * with the fewest logs. No attempt is made to move partitions after the fact or balance based on
  * size or I/O rate.
- * 
+ * 日志管理器在一个或多个目录中维护日志。在日志最少的数据目录中创建新日志。不会尝试在事件发生后移动分区，也不会基于大小或I/O速率平衡分区。
  * A background thread handles log retention by periodically truncating excess log segments.
+ * 后台线程通过定期截断多余的日志段来处理日志保留
  */
 @threadsafe
 class LogManager(val logDirs: Array[File],
@@ -183,30 +184,36 @@ class LogManager(val logDirs: Array[File],
 
   /**
    *  Start the background threads to flush logs and do log cleanup
+   *  启动后台线程以刷新日志并进行日志清理
    */
   def startup() {
-    /* Schedule the cleanup task to delete old logs */
+    /* Schedule the cleanup task to delete old logs 定时清理任务以删除旧日志*/
     if(scheduler != null) {
       info("Starting log cleanup with a period of %d ms.".format(retentionCheckMs))
+      //删除旧日志定时任务
       scheduler.schedule("kafka-log-retention", 
                          cleanupLogs, 
                          delay = InitialTaskDelayMs, 
                          period = retentionCheckMs, 
                          TimeUnit.MILLISECONDS)
       info("Starting log flusher with a default period of %d ms.".format(flushCheckMs))
+      //日志刷盘定时任务
       scheduler.schedule("kafka-log-flusher", 
                          flushDirtyLogs, 
                          delay = InitialTaskDelayMs, 
                          period = flushCheckMs, 
                          TimeUnit.MILLISECONDS)
+      //恢复文件定时任务
       scheduler.schedule("kafka-recovery-point-checkpoint",
                          checkpointRecoveryPointOffsets,
                          delay = InitialTaskDelayMs,
                          period = flushCheckpointMs,
                          TimeUnit.MILLISECONDS)
     }
-    if(cleanerConfig.enableCleaner)
+    if(cleanerConfig.enableCleaner) {
+      //清理器启动
       cleaner.startup()
+    }
   }
 
   /**
@@ -218,12 +225,12 @@ class LogManager(val logDirs: Array[File],
     val threadPools = mutable.ArrayBuffer.empty[ExecutorService]
     val jobs = mutable.Map.empty[File, Seq[Future[_]]]
 
-    // stop the cleaner first
+    // stop the cleaner first 关闭清理器
     if (cleaner != null) {
       CoreUtils.swallow(cleaner.shutdown())
     }
 
-    // close logs in each dir
+    // close logs in each dir 关闭每个目录中的日志
     for (dir <- this.logDirs) {
       debug("Flushing and closing logs at " + dir)
 
@@ -234,7 +241,7 @@ class LogManager(val logDirs: Array[File],
 
       val jobsForDir = logsInDir map { log =>
         CoreUtils.runnable {
-          // flush the log to ensure latest possible recovery point
+          // flush the log to ensure latest possible recovery point 刷新日志以确保最新的恢复点
           log.flush()
           log.close()
         }
@@ -318,6 +325,7 @@ class LogManager(val logDirs: Array[File],
   /**
    * Write out the current recovery point for all logs to a text file in the log directory 
    * to avoid recovering the whole log on startup.
+   * 将所有日志的当前恢复点写入日志目录中的文本文件，以避免在启动时恢复整个日志
    */
   def checkpointRecoveryPointOffsets() {
     this.logDirs.foreach(checkpointLogsInDir)
@@ -347,12 +355,13 @@ class LogManager(val logDirs: Array[File],
   /**
    * Create a log for the given topic and the given partition
    * If the log already exists, just return a copy of the existing log
+   * 为给定主题和给定分区创建日志,如果日志已经存在，只需返回现有日志的副本即可
    */
   def createLog(topicAndPartition: TopicAndPartition, config: LogConfig): Log = {
     logCreationOrDeletionLock synchronized {
       var log = logs.get(topicAndPartition)
       
-      // check if the log has already been created in another thread
+      // check if the log has already been created in another thread 检查日志是否已在其他线程中创建
       if(log != null)
         return log
       
@@ -448,6 +457,7 @@ class LogManager(val logDirs: Array[File],
 
   /**
    * Delete any eligible logs. Return the number of segments deleted.
+   * 删除所有符合条件的日志。返回已删除的段数
    */
   def cleanupLogs() {
     debug("Beginning log cleanup...")
@@ -482,6 +492,7 @@ class LogManager(val logDirs: Array[File],
 
   /**
    * Flush any log which has exceeded its flush interval and has unwritten messages.
+   * 刷新任何超过刷新间隔且包含未写入消息的日志
    */
   private def flushDirtyLogs() = {
     debug("Checking for dirty logs to flush...")

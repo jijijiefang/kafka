@@ -201,6 +201,7 @@ class OffsetIndex(@volatile private[this] var _file: File, val baseOffset: Long,
   
   /**
    * Append an entry for the given offset/location pair to the index. This entry must have a larger offset than all subsequent entries.
+   * 将给定偏移量/位置对的条目追加到索引中。此条目的偏移量必须大于所有后续条目的偏移量
    */
   def append(offset: Long, position: Int) {
     inLock(lock) {

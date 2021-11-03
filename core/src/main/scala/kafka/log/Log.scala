@@ -40,14 +40,15 @@ object LogAppendInfo {
 
 /**
  * Struct to hold various quantities we compute about each message set before appending to the log
- * @param firstOffset The first offset in the message set
- * @param lastOffset The last offset in the message set
- * @param timestamp The log append time (if used) of the message set, otherwise Message.NoTimestamp
- * @param sourceCodec The source codec used in the message set (send by the producer)
- * @param targetCodec The target codec of the message set(after applying the broker compression configuration if any)
- * @param shallowCount The number of shallow messages
- * @param validBytes The number of valid bytes
- * @param offsetsMonotonic Are the offsets in this message set monotonically increasing
+ * 保存我们在添加到日志之前计算的关于每个消息集的各种数量的结构
+ * @param firstOffset The first offset in the message set 消息集中的第一个偏移量
+ * @param lastOffset The last offset in the message set 消息集中的最后一个偏移量
+ * @param timestamp The log append time (if used) of the message set, otherwise Message.NoTimestamp 消息集的日志附加时间（如果使用）
+ * @param sourceCodec The source codec used in the message set (send by the producer) 消息集中使用的源编解码器（由生产者发送）
+ * @param targetCodec The target codec of the message set(after applying the broker compression configuration if any) 消息集的目标编解码器（在应用代理压缩配置（如果有）之后）
+ * @param shallowCount The number of shallow messages 消息数
+ * @param validBytes The number of valid bytes 有效字节数
+ * @param offsetsMonotonic Are the offsets in this message set monotonically increasing 此消息集中的偏移量是否单调增加
  */
 case class LogAppendInfo(var firstOffset: Long,
                          var lastOffset: Long,
@@ -61,17 +62,17 @@ case class LogAppendInfo(var firstOffset: Long,
 
 /**
  * An append-only log for storing messages.
- *
+ * 用于存储消息的仅附加日志
  * The log is a sequence of LogSegments, each with a base offset denoting the first message in the segment.
- *
+ * 日志是一系列日志段，每个日志段都有一个基本偏移量，表示该段中的第一条消息
  * New log segments are created according to a configurable policy that controls the size in bytes or time interval
  * for a given segment.
- *
- * @param dir The directory in which log segments are created.
- * @param config The log configuration settings
- * @param recoveryPoint The offset at which to begin recovery--i.e. the first offset which has not been flushed to disk
- * @param scheduler The thread pool scheduler used for background actions
- * @param time The time instance used for checking the clock
+ * 新的日志段是根据可配置的策略创建的，该策略控制给定段的字节大小或时间间隔
+ * @param dir The directory in which log segments are created. 创建日志段的目录
+ * @param config The log configuration settings 日志配置设置
+ * @param recoveryPoint The offset at which to begin recovery--i.e. the first offset which has not been flushed to disk 开始恢复的偏移量，即尚未刷新到磁盘的第一个偏移量
+ * @param scheduler The thread pool scheduler used for background actions 用于后台操作的线程池调度程序
+ * @param time The time instance used for checking the clock 用于检查时钟的时间实例
  *
  */
 @threadsafe
@@ -83,10 +84,10 @@ class Log(val dir: File,
 
   import kafka.log.Log._
 
-  /* A lock that guards all modifications to the log */
+  /* A lock that guards all modifications to the log 保护日志所有修改的锁*/
   private val lock = new Object
 
-  /* last time it was flushed */
+  /* last time it was flushed 最后刷盘时间*/
   private val lastflushedTime = new AtomicLong(time.milliseconds)
 
   def initFileSize() : Int = {
@@ -96,11 +97,11 @@ class Log(val dir: File,
       0
   }
 
-  /* the actual segments of the log */
+  /* the actual segments of the log 日志的实际段*/
   private val segments: ConcurrentNavigableMap[java.lang.Long, LogSegment] = new ConcurrentSkipListMap[java.lang.Long, LogSegment]
   loadSegments()
 
-  /* Calculate the offset of the next message */
+  /* Calculate the offset of the next message 计算下一条消息的偏移量*/
   @volatile var nextOffsetMetadata = new LogOffsetMetadata(activeSegment.nextOffset(), activeSegment.baseOffset, activeSegment.size.toInt)
 
   val topicAndPartition: TopicAndPartition = Log.parseTopicPartitionName(dir)
@@ -136,30 +137,30 @@ class Log(val dir: File,
   /** The name of this log */
   def name  = dir.getName()
 
-  /* Load the log segments from the log files on disk */
+  /* Load the log segments from the log files on disk 从磁盘上的日志文件加载日志段*/
   private def loadSegments() {
-    // create the log directory if it doesn't exist
+    // create the log directory if it doesn't exist 如果日志目录不存在，请创建日志目录
     dir.mkdirs()
     var swapFiles = Set[File]()
 
     // first do a pass through the files in the log directory and remove any temporary files
-    // and find any interrupted swap operations
+    // and find any interrupted swap operations 首先遍历日志目录中的文件，删除所有临时文件并查找任何中断的交换操作
     for(file <- dir.listFiles if file.isFile) {
       if(!file.canRead)
         throw new IOException("Could not read file " + file)
       val filename = file.getName
       if(filename.endsWith(DeletedFileSuffix) || filename.endsWith(CleanedFileSuffix)) {
-        // if the file ends in .deleted or .cleaned, delete it
+        // if the file ends in .deleted or .cleaned, delete it 如果文件以.deleted或.cleanned结尾，请将其删除
         file.delete()
       } else if(filename.endsWith(SwapFileSuffix)) {
-        // we crashed in the middle of a swap operation, to recover:
-        // if a log, delete the .index file, complete the swap operation later
-        // if an index just delete it, it will be rebuilt
+        // we crashed in the middle of a swap operation, to recover: 我们在交换操作中崩溃了,恢复:
+        // if a log, delete the .index file, complete the swap operation later 如果是日志，请删除.index文件，稍后完成交换操作
+        // if an index just delete it, it will be rebuilt 如果索引只是删除它，它将被重建
         val baseName = new File(CoreUtils.replaceSuffix(file.getPath, SwapFileSuffix, ""))
         if(baseName.getPath.endsWith(IndexFileSuffix)) {
           file.delete()
         } else if(baseName.getPath.endsWith(LogFileSuffix)){
-          // delete the index
+          // delete the index 删除索引文件
           val index = new File(CoreUtils.replaceSuffix(baseName.getPath, LogFileSuffix, IndexFileSuffix))
           index.delete()
           swapFiles += file
@@ -167,18 +168,18 @@ class Log(val dir: File,
       }
     }
 
-    // now do a second pass and load all the .log and .index files
+    // now do a second pass and load all the .log and .index files 现在进行第二次传递并加载所有.log和.index文件
     for(file <- dir.listFiles if file.isFile) {
       val filename = file.getName
       if(filename.endsWith(IndexFileSuffix)) {
-        // if it is an index file, make sure it has a corresponding .log file
+        // if it is an index file, make sure it has a corresponding .log file 如果是索引文件，请确保它具有相应的.log文件
         val logFile = new File(file.getAbsolutePath.replace(IndexFileSuffix, LogFileSuffix))
         if(!logFile.exists) {
           warn("Found an orphaned index file, %s, with no corresponding log file.".format(file.getAbsolutePath))
           file.delete()
         }
       } else if(filename.endsWith(LogFileSuffix)) {
-        // if its a log file, load the corresponding log segment
+        // if its a log file, load the corresponding log segment 如果是日志文件，请加载相应的日志段
         val start = filename.substring(0, filename.length - LogFileSuffix.length).toLong
         val indexFile = Log.indexFilename(dir, start)
         val segment = new LogSegment(dir = dir,
@@ -247,6 +248,10 @@ class Log(val dir: File,
 
   }
 
+  /**
+   * 更新LEO
+   * @param messageOffset 偏移量
+   */
   private def updateLogEndOffset(messageOffset: Long) {
     nextOffsetMetadata = new LogOffsetMetadata(messageOffset, activeSegment.baseOffset, activeSegment.size.toInt)
   }
@@ -305,10 +310,10 @@ class Log(val dir: File,
 
   /**
    * Append this message set to the active segment of the log, rolling over to a fresh segment if necessary.
-   *
+   * 将此消息集附加到日志的活动段，必要时滚动到新段
    * This method will generally be responsible for assigning offsets to the messages,
    * however if the assignOffsets=false flag is passed we will only check that the existing offsets are valid.
-   *
+   * 此方法通常负责为消息分配偏移量，但是如果传递assignOffsets=false标志，我们将只检查现有偏移量是否有效
    * @param messages The message set to append
    * @param assignOffsets Should the log assign offsets to this message set or blindly apply what it is given
    *
@@ -327,7 +332,7 @@ class Log(val dir: File,
     var validMessages = trimInvalidBytes(messages, appendInfo)
 
     try {
-      // they are valid, insert them in the log
+      // they are valid, insert them in the log 插入消息至文件
       lock synchronized {
 
         if (assignOffsets) {
@@ -373,24 +378,24 @@ class Log(val dir: File,
             throw new IllegalArgumentException("Out of order offsets found in " + messages)
         }
 
-        // check messages set size may be exceed config.segmentSize
+        // check messages set size may be exceed config.segmentSize 检查消息集合大小是否大于文件段
         if (validMessages.sizeInBytes > config.segmentSize) {
           throw new RecordBatchTooLargeException("Message set size is %d bytes which exceeds the maximum configured segment size of %d."
             .format(validMessages.sizeInBytes, config.segmentSize))
         }
 
-        // maybe roll the log if this segment is full
+        // maybe roll the log if this segment is full 如果此段已满，可以滚动日志
         val segment = maybeRoll(validMessages.sizeInBytes)
 
         // now append to the log 追加消息到segment
         segment.append(appendInfo.firstOffset, validMessages)
 
-        // increment the log end offset
+        // increment the log end offset 增加日志结束偏移量 更新LEO
         updateLogEndOffset(appendInfo.lastOffset + 1)
 
         trace("Appended message set to log %s with first offset: %d, next offset: %d, and messages: %s"
           .format(this.name, appendInfo.firstOffset, nextOffsetMetadata.messageOffset, validMessages))
-        //每写入10000条数据，刷盘到磁盘
+        //每写入多少条数据，刷盘到磁盘
         if (unflushedMessages >= config.flushInterval)
           flush()
 
@@ -605,7 +610,7 @@ class Log(val dir: File,
 
   /**
    * Roll the log over to a new empty log segment if necessary.
-   *
+   * 如有必要，将日志滚动到新的空日志段
    * @param messagesSize The messages set size in bytes
    * logSegment will be rolled if one of the following conditions met
    * <ol>
@@ -687,12 +692,12 @@ class Log(val dir: File,
   def unflushedMessages() = this.logEndOffset - this.recoveryPoint
 
   /**
-   * Flush all log segments
+   * Flush all log segments 刷新所有日志段
    */
   def flush(): Unit = flush(this.logEndOffset)
 
   /**
-   * Flush log segments for all offsets up to offset-1
+   * Flush log segments for all offsets up to offset-1 刷新所有偏移量的日志段，直到偏移量-1
    * @param offset The offset to flush up to (non-inclusive); the new recovery point
    */
   def flush(offset: Long) : Unit = {
@@ -777,6 +782,7 @@ class Log(val dir: File,
 
   /**
    * The active segment that is currently taking appends
+   * 当前正在附加消息的活动段
    */
   def activeSegment = segments.lastEntry.getValue
 

@@ -100,6 +100,18 @@ object ReplicaManager {
   val IsrChangePropagationInterval = 60000L
 }
 
+/**
+ * 副本管理器
+ * @param config
+ * @param metrics
+ * @param time
+ * @param jTime
+ * @param zkUtils
+ * @param scheduler
+ * @param logManager
+ * @param isShuttingDown
+ * @param threadNamePrefix
+ */
 class ReplicaManager(val config: KafkaConfig,
                      metrics: Metrics,
                      time: Time,
@@ -319,6 +331,7 @@ class ReplicaManager(val config: KafkaConfig,
   /**
    * Append messages to leader replicas of the partition, and wait for them to be replicated to other replicas;
    * the callback function will be triggered either when timeout or the required acks are satisfied
+   * 将消息附加到分区的Leader副本，并等待它们被复制到其他副本；当超时或满足所需的确认时，将触发回调函数
    */
   def appendMessages(timeout: Long,
                      requiredAcks: Short,
@@ -388,6 +401,7 @@ class ReplicaManager(val config: KafkaConfig,
 
   /**
    * Append the messages to the local replica logs
+   * 将消息附加到本地副本日志
    */
   private def appendToLocalLog(internalTopicsAllowed: Boolean,
                                messagesPerPartition: Map[TopicPartition, MessageSet],
@@ -397,7 +411,7 @@ class ReplicaManager(val config: KafkaConfig,
       BrokerTopicStats.getBrokerTopicStats(topicPartition.topic).totalProduceRequestRate.mark()
       BrokerTopicStats.getBrokerAllTopicsStats().totalProduceRequestRate.mark()
 
-      // reject appending to internal topics if it is not allowed
+      // reject appending to internal topics if it is not allowed 如果不允许拒绝追加至内部主题
       if (Topic.isInternal(topicPartition.topic) && !internalTopicsAllowed) {
         (topicPartition, LogAppendResult(
           LogAppendInfo.UnknownLogAppendInfo,

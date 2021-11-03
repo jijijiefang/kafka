@@ -31,14 +31,15 @@ import java.io.{IOException, File}
  * the actual messages. The index is an OffsetIndex that maps from logical offsets to physical file positions. Each
  * segment has a base offset which is an offset <= the least offset of any message in this segment and > any offset in
  * any previous segment.
- *
+ * 日志的一段。每个段有两个组件：日志和索引。日志是包含实际消息的FileMessageSet。索引是从逻辑偏移映射到物理文件位置的偏移索引。
+ * 每个段都有一个基本偏移量，该偏移量<=此段中任何消息的最小偏移量>任何前一段中的任何偏移量。
  * A segment with a base offset of [base_offset] would be stored in two files, a [base_offset].index and a [base_offset].log file.
  *
- * @param log The message set containing log entries
- * @param index The offset index
- * @param baseOffset A lower bound on the offsets in this segment
- * @param indexIntervalBytes The approximate number of bytes between entries in the index
- * @param time The time instance
+ * @param log The message set containing log entries 包含日志项的消息集
+ * @param index The offset index 偏移索引
+ * @param baseOffset A lower bound on the offsets in this segment 此段中偏移量的下限
+ * @param indexIntervalBytes The approximate number of bytes between entries in the index 索引中条目之间的大致字节数
+ * @param time The time instance 时间实例
  */
 @nonthreadsafe
 class LogSegment(val log: FileMessageSet,
@@ -83,7 +84,7 @@ class LogSegment(val log: FileMessageSet,
         index.append(offset, log.sizeInBytes())
         this.bytesSinceLastIndexEntry = 0
       }
-      // append the messages
+      // append the messages 追加消息
       log.append(messages)
       this.bytesSinceLastIndexEntry += messages.sizeInBytes
     }
@@ -245,7 +246,7 @@ class LogSegment(val log: FileMessageSet,
   }
 
   /**
-   * Flush this log segment to disk
+   * Flush this log segment to disk 将此日志段刷新到磁盘
    */
   @threadsafe
   def flush() {

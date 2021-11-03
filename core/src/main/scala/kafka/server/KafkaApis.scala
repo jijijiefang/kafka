@@ -48,7 +48,7 @@ import scala.collection.JavaConverters._
 import org.apache.kafka.common.requests.SaslHandshakeResponse
 
 /**
- * Logic to handle the various Kafka requests
+ * Logic to handle the various Kafka requests 处理各种Kafka请求的逻辑
  */
 class KafkaApis(val requestChannel: RequestChannel,
                 val replicaManager: ReplicaManager,
@@ -67,6 +67,7 @@ class KafkaApis(val requestChannel: RequestChannel,
 
   /**
    * Top-level method that handles all requests and multiplexes to the right api
+   * 处理所有请求并多路传输到正确api的顶级方法
    */
   def handle(request: RequestChannel.Request) {
     try {
@@ -331,7 +332,7 @@ class KafkaApis(val requestChannel: RequestChannel,
       case (topicPartition, _) => authorize(request.session, Write, new Resource(Topic, topicPartition.topic))
     }
 
-    // the callback for sending a produce response
+    // the callback for sending a produce response 用于发送生成响应的回调
     def sendResponseCallback(responseStatus: Map[TopicPartition, PartitionResponse]) {
 
       val mergedResponseStatus = responseStatus ++ unauthorizedRequestInfo.mapValues(_ =>
@@ -350,11 +351,18 @@ class KafkaApis(val requestChannel: RequestChannel,
         }
       }
 
+      /**
+       * 生产响应回调
+       * @param delayTimeMs
+       */
       def produceResponseCallback(delayTimeMs: Int) {
+        //如果acks等于0
         if (produceRequest.acks == 0) {
           // no operation needed if producer request.required.acks = 0; however, if there is any error in handling
           // the request, since no response is expected by the producer, the server will close socket server so that
           // the producer client will know that some error has happened and will refresh its metadata
+          //如果producer request.required.acks=0，则无需操作；
+          //但是，如果在处理请求时出现任何错误，因为生产者不期望响应，服务器将关闭套接字服务器，以便生产者客户端知道发生了错误并刷新其元数据
           if (errorInResponse) {
             val exceptionsSummary = mergedResponseStatus.map { case (topicPartition, status) =>
               topicPartition -> Errors.forCode(status.errorCode).exceptionName
@@ -369,7 +377,9 @@ class KafkaApis(val requestChannel: RequestChannel,
             requestChannel.noOperation(request.processor, request)
           }
         } else {
+          //创建响应消息头
           val respHeader = new ResponseHeader(request.header.correlationId)
+          //创建响应消息体
           val respBody = request.header.apiVersion match {
             case 0 => new ProduceResponse(mergedResponseStatus.asJava)
             case version@(1 | 2) => new ProduceResponse(mergedResponseStatus.asJava, delayTimeMs, version)
@@ -377,7 +387,7 @@ class KafkaApis(val requestChannel: RequestChannel,
             // updating this part of the code to handle it properly.
             case version => throw new IllegalArgumentException(s"Version `$version` of ProduceRequest is not handled. Code must be updated.")
           }
-
+          //发送响应
           requestChannel.sendResponse(new RequestChannel.Response(request, new ResponseSend(request.connectionId, respHeader, respBody)))
         }
       }
@@ -401,7 +411,7 @@ class KafkaApis(val requestChannel: RequestChannel,
         case (topicPartition, buffer) => (topicPartition, new ByteBufferMessageSet(buffer))
       }
 
-      // call the replica manager to append messages to the replicas
+      // call the replica manager to append messages to the replicas 调用副本管理器将消息附加到副本
       replicaManager.appendMessages(
         produceRequest.timeout.toLong,
         produceRequest.acks,
@@ -678,7 +688,7 @@ class KafkaApis(val requestChannel: RequestChannel,
   }
 
   /**
-   * Handle a topic metadata request
+   * Handle a topic metadata request 处理主题元数据信息请求
    */
   def handleTopicMetadataRequest(request: RequestChannel.Request) {
     val metadataRequest = request.body.asInstanceOf[MetadataRequest]
