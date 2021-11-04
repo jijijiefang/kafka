@@ -38,6 +38,7 @@ import org.apache.kafka.common.requests.PartitionState
 
 /**
  * Data structure that represents a topic partition. The leader maintains the AR, ISR, CUR, RAR
+ * 表示主题分区的数据结构。领导维护AR、ISR、CUR、RAR
  */
 class Partition(val topic: String,
                 val partitionId: Int,
