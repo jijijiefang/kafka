@@ -121,6 +121,7 @@ object DelayedOperationPurgatory {
 
 /**
  * A helper purgatory class for bookkeeping delayed operations with a timeout, and expiring timed out operations.
+ * 延时操作管理器
  */
 class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: String,
                                                        timeoutTimer: Timer,
@@ -346,7 +347,12 @@ class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: String,
     }
   }
 
+  /**
+   * 时间推进
+   * @param timeoutMs 超时时间
+   */
   def advanceClock(timeoutMs: Long) {
+    //系统定时器时间向前推进
     timeoutTimer.advanceClock(timeoutMs)
 
     // Trigger a purge if the number of completed but still being watched operations is larger than
@@ -365,6 +371,7 @@ class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: String,
 
   /**
    * A background reaper to expire delayed operations that have timed out
+   * 后台收割机将使已超时的延迟操作过期
    */
   private class ExpiredOperationReaper extends ShutdownableThread(
     "ExpirationReaper-%d".format(brokerId),

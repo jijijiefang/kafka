@@ -55,20 +55,29 @@ trait Timer {
   def shutdown(): Unit
 }
 
+/**
+ * 系统定时器
+ * @param executorName 时间轮名称
+ * @param tickMs 时间轮刻度单位1毫秒
+ * @param wheelSize 时间轮刻度数量20
+ * @param startMs 起始时间
+ */
 @threadsafe
 class SystemTimer(executorName: String,
                   tickMs: Long = 1,
                   wheelSize: Int = 20,
                   startMs: Long = System.currentTimeMillis) extends Timer {
 
-  // timeout timer
+  // timeout timer 已经超时的定时任务执行线程池
   private[this] val taskExecutor = Executors.newFixedThreadPool(1, new ThreadFactory() {
     def newThread(runnable: Runnable): Thread =
       Utils.newThread("executor-"+executorName, runnable, false)
   })
-
+  //延迟队列
   private[this] val delayQueue = new DelayQueue[TimerTaskList]()
+  //任务计数
   private[this] val taskCounter = new AtomicInteger(0)
+  //时间轮
   private[this] val timingWheel = new TimingWheel(
     tickMs = tickMs,
     wheelSize = wheelSize,
@@ -77,11 +86,15 @@ class SystemTimer(executorName: String,
     delayQueue
   )
 
-  // Locks used to protect data structures while ticking
+  // Locks used to protect data structures while ticking 读写锁
   private[this] val readWriteLock = new ReentrantReadWriteLock()
   private[this] val readLock = readWriteLock.readLock()
   private[this] val writeLock = readWriteLock.writeLock()
 
+  /**
+   * 向时间轮里添加定时任务
+   * @param timerTask the task to add
+   */
   def add(timerTask: TimerTask): Unit = {
     readLock.lock()
     try {
@@ -91,14 +104,24 @@ class SystemTimer(executorName: String,
     }
   }
 
+  /**
+   * 向时间轮里添加定时任务
+   * @param timerTaskEntry 定时任务
+   */
   private def addTimerTaskEntry(timerTaskEntry: TimerTaskEntry): Unit = {
+    //加入时间轮失败
     if (!timingWheel.add(timerTaskEntry)) {
-      // Already expired or cancelled
-      if (!timerTaskEntry.cancelled)
+      // Already expired or cancelled 已经超时或已取消
+      if (!timerTaskEntry.cancelled) {
+        //直接使用线程池执行任务
         taskExecutor.submit(timerTaskEntry.timerTask)
+      }
     }
   }
 
+  /**
+   * 重新放入时间轮
+   */
   private[this] val reinsert = (timerTaskEntry: TimerTaskEntry) => addTimerTaskEntry(timerTaskEntry)
 
   /*
@@ -114,6 +137,7 @@ class SystemTimer(executorName: String,
         while (bucket != null) {
           //时间轮指针向前推动
           timingWheel.advanceClock(bucket.getExpiration())
+          //移除链表中所有定时任务，并重新加入，在重新加入的时候如果超时或已取消就直接执行
           bucket.flush(reinsert)
           bucket = delayQueue.poll()
         }

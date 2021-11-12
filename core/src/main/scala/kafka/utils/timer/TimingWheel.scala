@@ -96,6 +96,15 @@ import java.util.concurrent.atomic.AtomicInteger
  * This class is not thread-safe. There should not be any add calls while advanceClock is executing.
  * It is caller's responsibility to enforce it. Simultaneous add calls are thread-safe.
  */
+
+/**
+ * 时间轮实现
+ * @param tickMs 时间轮刻度
+ * @param wheelSize 时间轮刻度数量
+ * @param startMs 起始时间
+ * @param taskCounter 任务计数
+ * @param queue 延时队列
+ */
 @nonthreadsafe
 private[timer] class TimingWheel(tickMs: Long, wheelSize: Int, startMs: Long, taskCounter: AtomicInteger, queue: DelayQueue[TimerTaskList]) {
   //每个刻度时长*刻度长度
@@ -170,8 +179,11 @@ private[timer] class TimingWheel(tickMs: Long, wheelSize: Int, startMs: Long, ta
       overflowWheel.add(timerTaskEntry)
     }
   }
-
-  // Try to advance the clock 指针向前移动
+  /**
+   * Try to advance the clock
+   * 指针向前移动
+   * @param timeMs
+   */
   def advanceClock(timeMs: Long): Unit = {
     if (timeMs >= currentTime + tickMs) {
       //更新当前时间

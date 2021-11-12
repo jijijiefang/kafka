@@ -94,7 +94,7 @@ private[timer] class TimerTaskList(taskCounter: AtomicInteger) extends Delayed {
     }
   }
 
-  // Remove the specified timer task entry from this list
+  // Remove the specified timer task entry from this list 链表移除定时任务
   def remove(timerTaskEntry: TimerTaskEntry): Unit = {
     synchronized {
       timerTaskEntry.synchronized {
@@ -110,12 +110,14 @@ private[timer] class TimerTaskList(taskCounter: AtomicInteger) extends Delayed {
     }
   }
 
-  // Remove all task entries and apply the supplied function to each of them
+  // Remove all task entries and apply the supplied function to each of them 删除队列中所有定时任务，并执行重新加入时间轮方法
   def flush(f: (TimerTaskEntry)=>Unit): Unit = {
     synchronized {
       var head = root.next
       while (head ne root) {
+        //链表移除head
         remove(head)
+        //head重新加入链表，重新加入过程中如果已超时或已取消直接执行
         f(head)
         head = root.next
       }
@@ -138,9 +140,15 @@ private[timer] class TimerTaskList(taskCounter: AtomicInteger) extends Delayed {
 
 }
 
+/**
+ * 定时任务
+ * @param timerTask 定时任务
+ * @param expirationMs 超时时间
+ */
 private[timer] class TimerTaskEntry(val timerTask: TimerTask, val expirationMs: Long) extends Ordered[TimerTaskEntry] {
 
   @volatile
+  //当前定时任务所在链表
   var list: TimerTaskList = null
   var next: TimerTaskEntry = null
   var prev: TimerTaskEntry = null

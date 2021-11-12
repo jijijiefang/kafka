@@ -16,6 +16,9 @@
  */
 package kafka.utils.timer
 
+/**
+ * 延时任务
+ */
 trait TimerTask extends Runnable {
 
   val delayMs: Long // timestamp in millisecond
