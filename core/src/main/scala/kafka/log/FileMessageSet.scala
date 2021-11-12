@@ -292,7 +292,7 @@ class FileMessageSet private[kafka](@volatile var file: File,
   def sizeInBytes(): Int = _size.get()
 
   /**
-   * Append these messages to the message set
+   * Append these messages to the message set 追加消息至消息集
    */
   def append(messages: ByteBufferMessageSet) {
     //channel对应.log磁盘文件的mmap的FileChannel

@@ -23,6 +23,10 @@ import kafka.utils.{SystemTime, threadsafe}
 
 import scala.math._
 
+/**
+ * 定时任务双向链表
+ * @param taskCounter 任务计数
+ */
 @threadsafe
 private[timer] class TimerTaskList(taskCounter: AtomicInteger) extends Delayed {
 
@@ -33,15 +37,18 @@ private[timer] class TimerTaskList(taskCounter: AtomicInteger) extends Delayed {
   root.next = root
   root.prev = root
 
+  /**
+   * 过期时间
+   */
   private[this] val expiration = new AtomicLong(-1L)
 
   // Set the bucket's expiration time
-  // Returns true if the expiration time is changed
+  // Returns true if the expiration time is changed 设置当前链表过期时间，如果过期时间发生变化返回true
   def setExpiration(expirationMs: Long): Boolean = {
     expiration.getAndSet(expirationMs) != expirationMs
   }
 
-  // Get the bucket's expiration time
+  // Get the bucket's expiration time 获取链表的过期时间
   def getExpiration(): Long = {
     expiration.get()
   }
@@ -60,7 +67,7 @@ private[timer] class TimerTaskList(taskCounter: AtomicInteger) extends Delayed {
     }
   }
 
-  // Add a timer task entry to this list
+  // Add a timer task entry to this list 增加定时任务到链表
   def add(timerTaskEntry: TimerTaskEntry): Unit = {
     var done = false
     while (!done) {

@@ -27,6 +27,7 @@ trait Timer {
   /**
     * Add a new task to this executor. It will be executed after the task's delay
     * (beginning from the time of submission)
+    * 将新任务添加到此执行器。它将在任务延迟后执行（从提交时开始
     * @param timerTask the task to add
     */
   def add(timerTask: TimerTask): Unit
@@ -34,6 +35,7 @@ trait Timer {
   /**
     * Advance the internal clock, executing any tasks whose expiration has been
     * reached within the duration of the passed timeout.
+    * 提前内部时钟，执行在经过的超时持续时间内到期的任何任务
     * @param timeoutMs
     * @return whether or not any tasks were executed
     */
@@ -41,12 +43,14 @@ trait Timer {
 
   /**
     * Get the number of tasks pending execution
+    * 获取挂起执行的任务数
     * @return the number of tasks
     */
   def size: Int
 
   /**
     * Shutdown the timer service, leaving pending tasks unexecuted
+    * 关闭计时器服务，保留未执行的挂起任务
     */
   def shutdown(): Unit
 }
@@ -100,6 +104,7 @@ class SystemTimer(executorName: String,
   /*
    * Advances the clock if there is an expired bucket. If there isn't any expired bucket when called,
    * waits up to timeoutMs before giving up.
+   * 如果存在过期的存储桶，则提前时钟。如果调用时没有任何过期的bucket，则在放弃之前等待timeoutMs
    */
   def advanceClock(timeoutMs: Long): Boolean = {
     var bucket = delayQueue.poll(timeoutMs, TimeUnit.MILLISECONDS)
@@ -107,6 +112,7 @@ class SystemTimer(executorName: String,
       writeLock.lock()
       try {
         while (bucket != null) {
+          //时间轮指针向前推动
           timingWheel.advanceClock(bucket.getExpiration())
           bucket.flush(reinsert)
           bucket = delayQueue.poll()
