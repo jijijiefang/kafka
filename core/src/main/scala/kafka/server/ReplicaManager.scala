@@ -203,10 +203,10 @@ class ReplicaManager(val config: KafkaConfig,
 
   /**
    * Try to complete some delayed produce requests with the request key;
-   * this can be triggered when:
+   * this can be triggered when: 尝试完成延迟生产请求当这些请求时触发
    *
-   * 1. The partition HW has changed (for acks = -1)
-   * 2. A follower replica's fetch operation is received (for acks > 1)
+   * 1. The partition HW has changed (for acks = -1) 如果acks = -1,分区HW发生变化
+   * 2. A follower replica's fetch operation is received (for acks > 1) 如果acks > 1,已经收到一些分区的拉取操作
    */
   def tryCompleteDelayedProduce(key: DelayedOperationKey) {
     val completed = delayedProducePurgatory.checkAndComplete(key)
@@ -353,16 +353,16 @@ class ReplicaManager(val config: KafkaConfig,
       }
 
       if (delayedRequestRequired(requiredAcks, messagesPerPartition, localProduceResults)) {
-        // create delayed produce operation
+        // create delayed produce operation 创建延迟生产操作
         val produceMetadata = ProduceMetadata(requiredAcks, produceStatus)
         val delayedProduce = new DelayedProduce(timeout, produceMetadata, this, responseCallback)
 
-        // create a list of (topic, partition) pairs to use as keys for this delayed produce operation
+        // create a list of (topic, partition) pairs to use as keys for this delayed produce operation 创建（主题、分区）对的列表，用作此延迟生成操作的键
         val producerRequestKeys = messagesPerPartition.keys.map(new TopicPartitionOperationKey(_)).toSeq
 
         // try to complete the request immediately, otherwise put it into the purgatory
         // this is because while the delayed produce operation is being created, new
-        // requests may arrive and hence make this operation completable.
+        // requests may arrive and hence make this operation completable. 尝试立即完成请求，否则将其放入炼狱。这是因为在创建延迟的生产操作时，新请求可能会到达，从而使此操作可完成
         delayedProducePurgatory.tryCompleteElseWatch(delayedProduce, producerRequestKeys)
 
       } else {
@@ -470,6 +470,7 @@ class ReplicaManager(val config: KafkaConfig,
   /**
    * Fetch messages from the leader replica, and wait until enough data can be fetched and return;
    * the callback function will be triggered either when timeout or required fetch info is satisfied
+   * 从
    */
   def fetchMessages(timeout: Long,
                     replicaId: Int,

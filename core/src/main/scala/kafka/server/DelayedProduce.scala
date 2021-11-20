@@ -49,6 +49,7 @@ case class ProduceMetadata(produceRequiredAcks: Short,
 /**
  * A delayed produce operation that can be created by the replica manager and watched
  * in the produce operation purgatory
+ * 一种延迟的生产操作，可由副本管理器创建并在生产操作炼狱中监视
  */
 class DelayedProduce(delayMs: Long,
                      produceMetadata: ProduceMetadata,
@@ -56,7 +57,7 @@ class DelayedProduce(delayMs: Long,
                      responseCallback: Map[TopicPartition, PartitionResponse] => Unit)
   extends DelayedOperation(delayMs) {
 
-  // first update the acks pending variable according to the error code
+  // first update the acks pending variable according to the error code 首先根据错误代码更新acksPending
   produceMetadata.produceStatus.foreach { case (topicPartition, status) =>
     if (status.responseStatus.errorCode == Errors.NONE.code) {
       // Timeout error state will be cleared when required acks are received
@@ -73,9 +74,9 @@ class DelayedProduce(delayMs: Long,
    * The delayed produce operation can be completed if every partition
    * it produces to is satisfied by one of the following:
    *
-   * Case A: This broker is no longer the leader: set an error in response
-   * Case B: This broker is the leader:
-   *   B.1 - If there was a local error thrown while checking if at least requiredAcks
+   * Case A: This broker is no longer the leader: set an error in response 当前Broker已经不是Leader，设置错误
+   * Case B: This broker is the leader: 当前Broker是Leader
+   *   B.1 - If there was a local error thrown while checking if at least requiredAcks  如果在检查是否至少requiredAcks副本已完成此操作时引发了本地错误：请在响应中设置错误
    *         replicas have caught up to this operation: set an error in response
    *   B.2 - Otherwise, set the response with no error.
    */
@@ -84,7 +85,7 @@ class DelayedProduce(delayMs: Long,
     produceMetadata.produceStatus.foreach { case (topicAndPartition, status) =>
       trace("Checking produce satisfaction for %s, current status %s"
         .format(topicAndPartition, status))
-      // skip those partitions that have already been satisfied
+      // skip those partitions that have already been satisfied 跳过已经满足的分区
       if (status.acksPending) {
         val partitionOpt = replicaManager.getPartition(topicAndPartition.topic, topicAndPartition.partition)
         val (hasEnough, errorCode) = partitionOpt match {

@@ -108,6 +108,12 @@ abstract class DelayedOperation(override val delayMs: Long) extends TimerTask wi
   }
 }
 
+/**
+ * 延时操作管理器（延时操作炼狱）
+ * Purgatory直译为“炼狱”，但丁的《神曲》中有炼狱的相关描述。
+ * 炼狱共有9层，在生前犯有罪过但可以得到宽恕的灵魂，按照人类的七宗罪（傲慢、忌妒、愤怒、怠惰、贪财、贪食、贪色）分别在这里修炼洗涤，而后一层层升向光明和天堂。
+ * Kafka 中采用这一称谓，将延时操作看作需要被洗涤的灵魂，在炼狱中慢慢修炼，等待解脱升入天堂（即完成延时操作）
+ */
 object DelayedOperationPurgatory {
 
   def apply[T <: DelayedOperation](purgatoryName: String,
@@ -121,7 +127,7 @@ object DelayedOperationPurgatory {
 
 /**
  * A helper purgatory class for bookkeeping delayed operations with a timeout, and expiring timed out operations.
- * 延时操作管理器
+ * 延时操作管理器（延时操作炼狱）
  */
 class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: String,
                                                        timeoutTimer: Timer,
