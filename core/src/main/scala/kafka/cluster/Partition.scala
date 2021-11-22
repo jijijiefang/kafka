@@ -306,40 +306,52 @@ class Partition(val topic: String,
    * and we are waiting for all replicas in ISR to be fully caught up to
    * the (local) leader's offset corresponding to this produce request
    * before we acknowledge the produce request.
+   * 请注意，只有当requiredAcks=-1并且我们正在等待ISR中的所有副本完全赶上与此生产请求相对应的（本地）领导者偏移量时，才会调用此方法，然后我们才确认生产请求
    */
   def checkEnoughReplicasReachOffset(requiredOffset: Long): (Boolean, Short) = {
     leaderReplicaIfLocal() match {
       case Some(leaderReplica) =>
-        // keep the current immutable replica list reference
+        // keep the current immutable replica list reference ISR列表
         val curInSyncReplicas = inSyncReplicas
+        //遍历ISR列表
         val numAcks = curInSyncReplicas.count(r => {
-          if (!r.isLocal)
+          //如果副本不是Leader副本
+          if (!r.isLocal) {
+            //检查此副本的LEO是否大于所需偏移量返回true，否则返回false
             if (r.logEndOffset.messageOffset >= requiredOffset) {
               trace("Replica %d of %s-%d received offset %d".format(r.brokerId, topic, partitionId, requiredOffset))
               true
             }
             else
               false
-          else
-            true /* also count the local (leader) replica */
+          //当前的Leader副本直接返回true
+          } else
+            true /* also count the local (leader) replica 还要计算本地（Leader）副本的数量*/
         })
 
         trace("%d acks satisfied for %s-%d with acks = -1".format(numAcks, topic, partitionId))
-
+        //最小同步副本数
         val minIsr = leaderReplica.log.get.config.minInSyncReplicas
-
+        //如果Leader副本的HW大于等于所需偏移量
         if (leaderReplica.highWatermark.messageOffset >= requiredOffset ) {
           /*
           * The topic may be configured not to accept messages if there are not enough replicas in ISR
           * in this scenario the request was already appended locally and then added to the purgatory before the ISR was shrunk
+          * 如果ISR中没有足够的副本，则可以将主题配置为不接受消息。在这种情况下，请求已在本地附加，然后在ISR收缩之前添加到炼狱中
           */
+          //如果小于等于当前ISR列表数量
           if (minIsr <= curInSyncReplicas.size) {
+            //设置为true，当前追加已经满足条件
             (true, Errors.NONE.code)
           } else {
+            //设置错误码，没有足够的副本
             (true, Errors.NOT_ENOUGH_REPLICAS_AFTER_APPEND.code)
           }
-        } else
+        } else {
+          //如果Leader副本的HW小于所需偏移量，发生本地错误
+          //设置为false，当前追加已经不满足条件
           (false, Errors.NONE.code)
+        }
       case None =>
         (false, Errors.NOT_LEADER_FOR_PARTITION.code)
     }

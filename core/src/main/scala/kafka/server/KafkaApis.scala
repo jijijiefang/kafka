@@ -322,7 +322,7 @@ class KafkaApis(val requestChannel: RequestChannel,
     authorizer.map(_.authorize(session, operation, resource)).getOrElse(true)
 
   /**
-   * Handle a produce request
+   * Handle a produce request 处理生产请求
    */
   def handleProducerRequest(request: RequestChannel.Request) {
     val produceRequest = request.body.asInstanceOf[ProduceRequest]
@@ -339,7 +339,7 @@ class KafkaApis(val requestChannel: RequestChannel,
         new PartitionResponse(Errors.TOPIC_AUTHORIZATION_FAILED.code, -1, Message.NoTimestamp))
 
       var errorInResponse = false
-
+      //遍历每个主题分区检查响应码，如果有异常设置errorInResponse为true
       mergedResponseStatus.foreach { case (topicPartition, status) =>
         if (status.errorCode != Errors.NONE.code) {
           errorInResponse = true
@@ -363,6 +363,7 @@ class KafkaApis(val requestChannel: RequestChannel,
           // the producer client will know that some error has happened and will refresh its metadata
           //如果producer request.required.acks=0，则无需操作；
           //但是，如果在处理请求时出现任何错误，因为生产者不期望响应，服务器将关闭套接字服务器，以便生产者客户端知道发生了错误并刷新其元数据
+          //发生异常
           if (errorInResponse) {
             val exceptionsSummary = mergedResponseStatus.map { case (topicPartition, status) =>
               topicPartition -> Errors.forCode(status.errorCode).exceptionName

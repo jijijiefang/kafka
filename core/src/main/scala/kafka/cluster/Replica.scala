@@ -47,10 +47,10 @@ class Replica(val brokerId: Int,
   val partitionId = partition.partitionId
 
   def isLocal: Boolean = {
-    log match {
-      case Some(l) => true
-      case None => false
-    }
+  }
+  log match {
+    case Some(l) => true
+    case None => false
   }
 
   private[this] val lastCaughtUpTimeMsUnderlying = new AtomicLong(time.milliseconds)

@@ -348,10 +348,10 @@ class ReplicaManager(val config: KafkaConfig,
       val produceStatus = localProduceResults.map { case (topicPartition, result) =>
         topicPartition ->
                 ProducePartitionStatus(
-                  result.info.lastOffset + 1, // required offset
-                  new PartitionResponse(result.errorCode, result.info.firstOffset, result.info.timestamp)) // response status
+                  result.info.lastOffset + 1, // required offset 所需偏移量
+                  new PartitionResponse(result.errorCode, result.info.firstOffset, result.info.timestamp)) // response status 响应状态
       }
-
+      //如果需要创建延迟请求
       if (delayedRequestRequired(requiredAcks, messagesPerPartition, localProduceResults)) {
         // create delayed produce operation 创建延迟生产操作
         val produceMetadata = ProduceMetadata(requiredAcks, produceStatus)
@@ -366,13 +366,14 @@ class ReplicaManager(val config: KafkaConfig,
         delayedProducePurgatory.tryCompleteElseWatch(delayedProduce, producerRequestKeys)
 
       } else {
-        // we can respond immediately
+        // we can respond immediately 我们可以立即作出响应
         val produceResponseStatus = produceStatus.mapValues(status => status.responseStatus)
         responseCallback(produceResponseStatus)
       }
     } else {
       // If required.acks is outside accepted range, something is wrong with the client
       // Just return an error and don't handle the request at all
+      //如果required.acks超出了可接受的范围，则客户端出现问题，只需返回一个错误，根本不处理请求
       val responseStatus = messagesPerPartition.map {
         case (topicAndPartition, messageSet) =>
           (topicAndPartition -> new PartitionResponse(Errors.INVALID_REQUIRED_ACKS.code,
@@ -384,10 +385,10 @@ class ReplicaManager(val config: KafkaConfig,
   }
 
   // If all the following conditions are true, we need to put a delayed produce request and wait for replication to complete
-  //
-  // 1. required acks = -1
-  // 2. there is data to append
-  // 3. at least one partition append was successful (fewer errors than partitions)
+  // 如果以下所有条件均为真，则需要发出延迟的生产请求并等待复制完成
+  // 1. required acks = -1 如果acks是-1
+  // 2. there is data to append 有数据要追加
+  // 3. at least one partition append was successful (fewer errors than partitions) 至少有一个分区追加成功（错误少于分区）
   private def delayedRequestRequired(requiredAcks: Short, messagesPerPartition: Map[TopicPartition, MessageSet],
                                        localProduceResults: Map[TopicPartition, LogAppendResult]): Boolean = {
     requiredAcks == -1 &&

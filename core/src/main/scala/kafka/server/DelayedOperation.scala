@@ -52,8 +52,8 @@ abstract class DelayedOperation(override val delayMs: Long) extends TimerTask wi
   private val completed = new AtomicBoolean(false)
 
   /*
-   * Force completing the delayed operation, if not already completed.
-   * This function can be triggered when
+   * Force completing the delayed operation, if not already completed.如果尚未完成，则强制完成延迟操作
+   * This function can be triggered when 此功能可在以下情况下触发：
    *
    * 1. The operation has been verified to be completable inside tryComplete() 已验证操作在tryComplete()内部是可完成的
    * 2. The operation has expired and hence needs to be completed right now 该操作已过期，因此需要立即完成
@@ -75,18 +75,20 @@ abstract class DelayedOperation(override val delayMs: Long) extends TimerTask wi
   }
 
   /**
-   * Check if the delayed operation is already completed
+   * Check if the delayed operation is already completed 检查延迟的操作是否已经完成
    */
   def isCompleted(): Boolean = completed.get()
 
   /**
    * Call-back to execute when a delayed operation gets expired and hence forced to complete.
+   * 当延迟的操作过期并因此被迫完成时，回调以执行
    */
   def onExpiration(): Unit
 
   /**
    * Process for completing an operation; This function needs to be defined
    * in subclasses and will be called exactly once in forceComplete()
+   * 完成操作的过程；此函数需要在子类中定义，并且在forceComplete（）中只调用一次
    */
   def onComplete(): Unit
 
@@ -94,13 +96,14 @@ abstract class DelayedOperation(override val delayMs: Long) extends TimerTask wi
    * Try to complete the delayed operation by first checking if the operation
    * can be completed by now. If yes execute the completion logic by calling
    * forceComplete() and return true iff forceComplete returns true; otherwise return false
-   *
+   * 首先检查操作是否可以在现在完成，尝试完成延迟的操作。
+   * 如果是，则通过调用forceComplete执行完成逻辑并返回true，如果forceComplete返回true；否则返回false
    * This function needs to be defined in subclasses
    */
   def tryComplete(): Boolean
 
   /*
-   * run() method defines a task that is executed on timeout
+   * run() method defines a task that is executed on timeout run方法定义超时时执行的任务
    */
   override def run(): Unit = {
     if (forceComplete())
@@ -136,12 +139,12 @@ class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: String,
                                                        reaperEnabled: Boolean = true)
         extends Logging with KafkaMetricsGroup {
 
-  /* a list of operation watching keys */
+  /* a list of operation watching keys 操作监视键列表*/
   private val watchersForKey = new Pool[Any, Watchers](Some((key: Any) => new Watchers(key)))
 
   private val removeWatchersLock = new ReentrantReadWriteLock()
 
-  // the number of estimated total operations in the purgatory
+  // the number of estimated total operations in the purgatory 炼狱中估计的总操作数
   private[this] val estimatedTotalOperations = new AtomicInteger(0)
 
   /* background thread expiring operations that have timed out 后台线程正在终止已超时的操作*/
@@ -220,7 +223,9 @@ class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: String,
     // if it cannot be completed by now and hence is watched, add to the expire queue also 如果现在无法完成，因此被监视，则也将其添加到expire队列
     if (! operation.isCompleted()) {
       //加入时间轮
+      //操作添加到时间轮里
       timeoutTimer.add(operation)
+      //如果操作已完成，则取消
       if (operation.isCompleted()) {
         // cancel the timer task
         operation.cancel()
