@@ -206,7 +206,7 @@ class ReplicaManager(val config: KafkaConfig,
    * this can be triggered when: 尝试完成延迟生产请求当这些请求时触发
    *
    * 1. The partition HW has changed (for acks = -1) 如果acks = -1,分区HW发生变化
-   * 2. A follower replica's fetch operation is received (for acks > 1) 如果acks > 1,已经收到一些分区的拉取操作
+   * 2. A follower replica's fetch operation is received (for acks > 1) 如果acks > 1,接收到跟随者副本的拉取操作
    */
   def tryCompleteDelayedProduce(key: DelayedOperationKey) {
     val completed = delayedProducePurgatory.checkAndComplete(key)
@@ -214,11 +214,11 @@ class ReplicaManager(val config: KafkaConfig,
   }
 
   /**
-   * Try to complete some delayed fetch requests with the request key;
-   * this can be triggered when:
+   * Try to complete some delayed fetch requests with the request key; 尝试完成某些延迟拉取请求操作使用请求键
+   * this can be triggered when: 可能由某些情况触发
    *
-   * 1. The partition HW has changed (for regular fetch)
-   * 2. A new message set is appended to the local log (for follower fetch)
+   * 1. The partition HW has changed (for regular fetch) 分区HW发生了变化
+   * 2. A new message set is appended to the local log (for follower fetch) 一个新的消息集被追加到本地日志
    */
   def tryCompleteDelayedFetch(key: DelayedOperationKey) {
     val completed = delayedFetchPurgatory.checkAndComplete(key)
@@ -876,15 +876,22 @@ class ReplicaManager(val config: KafkaConfig,
     allPartitions.values.foreach(partition => partition.maybeShrinkIsr(config.replicaLagTimeMaxMs))
   }
 
+  /**
+   * 更新跟随者副本日志读取结果
+   * @param replicaId
+   * @param readResults
+   */
   private def updateFollowerLogReadResults(replicaId: Int, readResults: Map[TopicAndPartition, LogReadResult]) {
     debug("Recording follower broker %d log read results: %s ".format(replicaId, readResults))
     readResults.foreach { case (topicAndPartition, readResult) =>
       getPartition(topicAndPartition.topic, topicAndPartition.partition) match {
         case Some(partition) =>
+          //更新分区副本的LEO
           partition.updateReplicaLogReadResult(replicaId, readResult)
 
-          // for producer requests with ack > 1, we need to check
-          // if they can be unblocked after some follower's log end offsets have moved
+          // for producer requests with ack > 1, we need to check 对于ack>1的生产者请求，我们需要检查
+          // if they can be unblocked after some follower's log end offsets have moved 在某些Follower的LEO移动后是否可以解除阻塞
+          //尝试完成延迟生产消息操作
           tryCompleteDelayedProduce(new TopicPartitionOperationKey(topicAndPartition))
         case None =>
           warn("While recording the replica LEO, the partition %s hasn't been created.".format(topicAndPartition))

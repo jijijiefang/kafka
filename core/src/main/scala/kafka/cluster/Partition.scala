@@ -164,6 +164,8 @@ class Partition(val topic: String,
    * Make the local replica the leader by resetting LogEndOffset for remote replicas (there could be old LogEndOffset
    * from the time when this broker was the leader last time) and setting the new leader and ISR.
    * If the leader replica id does not change, return false to indicate the replica manager.
+   * 通过重置远程副本的LogEndOffset（从上次此代理是Leader时起可能存在旧的LogEndOffset）并设置新的Leader和ISR，使本地副本成为Leader。
+   * 如果Leader副本id没有更改，则返回false以指示副本管理器
    */
   def makeLeader(controllerId: Int, partitionStateInfo: PartitionState, correlationId: Int): Boolean = {
     val (leaderHWIncremented, isNewLeader) = inWriteLock(leaderIsrUpdateLock) {
@@ -234,6 +236,7 @@ class Partition(val topic: String,
 
   /**
    * Update the log end offset of a certain replica of this partition
+   * 更新分区副本的LEO
    */
   def updateReplicaLogReadResult(replicaId: Int, logReadResult: LogReadResult) {
     getReplica(replicaId) match {
@@ -261,8 +264,9 @@ class Partition(val topic: String,
 
   /**
    * Check and maybe expand the ISR of the partition.
-   *
+   * 检查并可能扩展分区的ISR。
    * This function can be triggered when a replica's LEO has incremented
+   * 当副本的LEO增加时，可以触发此功能
    */
   def maybeExpandIsr(replicaId: Int) {
     val leaderHWIncremented = inWriteLock(leaderIsrUpdateLock) {
@@ -292,7 +296,7 @@ class Partition(val topic: String,
       }
     }
 
-    // some delayed operations may be unblocked after HW changed
+    // some delayed operations may be unblocked after HW changed HW变化后某些延迟操作可以停止挂起
     if (leaderHWIncremented)
       tryCompleteDelayedRequests()
   }
@@ -374,6 +378,7 @@ class Partition(val topic: String,
 
   /**
    * Try to complete any pending requests. This should be called without holding the leaderIsrUpdateLock.
+   * 尝试完成所有阻塞的请求
    */
   private def tryCompleteDelayedRequests() {
     val requestKey = new TopicPartitionOperationKey(this.topic, this.partitionId)
@@ -405,7 +410,7 @@ class Partition(val topic: String,
       }
     }
 
-    // some delayed operations may be unblocked after HW changed
+    // some delayed operations may be unblocked after HW changed HW变化后某些延迟操作会解除阻塞
     if (leaderHWIncremented)
       tryCompleteDelayedRequests()
   }
@@ -467,7 +472,7 @@ class Partition(val topic: String,
       }
     }
 
-    // some delayed operations may be unblocked after HW changed
+    // some delayed operations may be unblocked after HW changed HW变化后某些延迟操作会解除阻塞
     if (leaderHWIncremented)
       tryCompleteDelayedRequests()
 

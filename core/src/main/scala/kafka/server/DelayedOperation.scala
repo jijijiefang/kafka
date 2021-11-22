@@ -55,8 +55,8 @@ abstract class DelayedOperation(override val delayMs: Long) extends TimerTask wi
    * Force completing the delayed operation, if not already completed.
    * This function can be triggered when
    *
-   * 1. The operation has been verified to be completable inside tryComplete()
-   * 2. The operation has expired and hence needs to be completed right now
+   * 1. The operation has been verified to be completable inside tryComplete() 已验证操作在tryComplete()内部是可完成的
+   * 2. The operation has expired and hence needs to be completed right now 该操作已过期，因此需要立即完成
    *
    * Return true iff the operation is completed by the caller: note that
    * concurrent threads can try to complete the same operation, but only
@@ -144,7 +144,7 @@ class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: String,
   // the number of estimated total operations in the purgatory
   private[this] val estimatedTotalOperations = new AtomicInteger(0)
 
-  /* background thread expiring operations that have timed out */
+  /* background thread expiring operations that have timed out 后台线程正在终止已超时的操作*/
   private val expirationReaper = new ExpiredOperationReaper()
 
   private val metricsTags = Map("delayedOperation" -> purgatoryName)
@@ -170,7 +170,7 @@ class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: String,
 
   /**
    * Check if the operation can be completed, if not watch it based on the given watch keys
-   *
+   * 检查操作是否可以完成，如果不能，请根据给定的观察键进行观察
    * Note that a delayed operation can be watched on multiple keys. It is possible that
    * an operation is completed after it has been added to the watch list for some, but
    * not all of the keys. In this case, the operation is considered completed and won't
@@ -193,30 +193,33 @@ class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: String,
     // if the operation is completed (by another thread) between the two tryComplete() calls, the
     // operation is unnecessarily added for watch. However, this is a less severe issue since the
     // expire reaper will clean it up periodically.
-
+    //上来就尝试是否可以完成
     var isCompletedByMe = operation synchronized operation.tryComplete()
+    //如果完成直接返回true
     if (isCompletedByMe)
       return true
 
     var watchCreated = false
+    //遍历watchKeys
     for(key <- watchKeys) {
-      // If the operation is already completed, stop adding it to the rest of the watcher list.
+      // If the operation is already completed, stop adding it to the rest of the watcher list.如果延迟操作已完成，不用把它加入到监视队列
       if (operation.isCompleted())
         return false
-      watchForOperation(key, operation)
+      watchForOperation(key, operation)//延迟操作加入观察者观察队列
 
       if (!watchCreated) {
         watchCreated = true
         estimatedTotalOperations.incrementAndGet()
       }
     }
-
+    //尝试完成延迟操作
     isCompletedByMe = operation synchronized operation.tryComplete()
     if (isCompletedByMe)
       return true
 
-    // if it cannot be completed by now and hence is watched, add to the expire queue also
+    // if it cannot be completed by now and hence is watched, add to the expire queue also 如果现在无法完成，因此被监视，则也将其添加到expire队列
     if (! operation.isCompleted()) {
+      //加入时间轮
       timeoutTimer.add(operation)
       if (operation.isCompleted()) {
         // cancel the timer task
@@ -230,14 +233,15 @@ class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: String,
   /**
    * Check if some some delayed operations can be completed with the given watch key,
    * and if yes complete them.
-   *
+   * 检查是否可以使用给定的手表键完成某些延迟操作，如果可以，则完成这些操作
    * @return the number of completed operations during this process
    */
   def checkAndComplete(key: Any): Int = {
     val watchers = inReadLock(removeWatchersLock) { watchersForKey.get(key) }
+    //不存在返回0
     if(watchers == null)
       0
-    else
+    else//存在，尝试完成
       watchers.tryCompleteWatched()
   }
 
@@ -245,27 +249,33 @@ class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: String,
    * Return the total size of watch lists the purgatory. Since an operation may be watched
    * on multiple lists, and some of its watched entries may still be in the watch lists
    * even when it has been completed, this number may be larger than the number of real operations watched
+   * 返回炼狱表的总大小。由于一个操作可能会在多个列表上被监视，并且即使它已经完成，它的一些被监视条目可能仍然在监视列表中，因此该数字可能大于被监视的实际操作的数量返回炼狱里观察的总数
    */
   def watched() = allWatchers.map(_.watched).sum
 
   /**
    * Return the number of delayed operations in the expiry queue
+   * 返回过期队列中的延迟操作数
    */
   def delayed() = timeoutTimer.size
 
   /*
    * Return all the current watcher lists,
    * note that the returned watchers may be removed from the list by other threads
+   * 返回所有当前观察者列表，请注意，返回的观察者可能会被其他线程从列表中删除
    */
   private def allWatchers = inReadLock(removeWatchersLock) { watchersForKey.values }
 
   /*
    * Return the watch list of the given key, note that we need to
    * grab the removeWatchersLock to avoid the operation being added to a removed watcher list
+   * 监视此延迟操作
    */
   private def watchForOperation(key: Any, operation: T) {
     inReadLock(removeWatchersLock) {
+      //获取监视着
       val watcher = watchersForKey.getAndMaybePut(key)
+      //加入监视者
       watcher.watch(operation)
     }
   }
@@ -296,19 +306,24 @@ class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: String,
 
   /**
    * A linked list of watched delayed operations based on some key
+   * 基于某个键的监视的延迟操作的链接列表
    */
   private class Watchers(val key: Any) {
-
+    //用于存放和这个key关联的所有操作,一个key可以关联多个操作, 同时一个操作也可以被多个key关联(即位于多个Watchers对象中)
     private[this] val operations = new LinkedList[T]()
 
     def watched: Int = operations synchronized operations.size
 
-    // add the element to watch
+    // add the element to watch 添加元素到观察列表
     def watch(t: T) {
       operations synchronized operations.add(t)
     }
 
     // traverse the list and try to complete some watched elements
+    /**
+     * 遍历列表，尝试完成观察的元素
+     * @return
+     */
     def tryCompleteWatched(): Int = {
 
       var completed = 0
@@ -316,9 +331,11 @@ class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: String,
         val iter = operations.iterator()
         while (iter.hasNext) {
           val curr = iter.next()
+          //如果已完成则移除
           if (curr.isCompleted) {
             // another thread has completed this operation, just remove it
             iter.remove()
+            //如果未完成，则尝试立即完成，如果可以完成，则移除
           } else if (curr synchronized curr.tryComplete()) {
             completed += 1
             iter.remove()
@@ -333,6 +350,10 @@ class DelayedOperationPurgatory[T <: DelayedOperation](purgatoryName: String,
     }
 
     // traverse the list and purge elements that are already completed by others
+    /**
+     * 删除链表中所有已经完成的操作
+     * @return
+     */
     def purgeCompleted(): Int = {
       var purged = 0
       operations synchronized {
