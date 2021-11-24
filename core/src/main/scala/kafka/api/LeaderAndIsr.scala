@@ -32,6 +32,13 @@ object LeaderAndIsr {
   val LeaderDuringDelete = -2
 }
 
+/**
+ * 领导者和ISR对象
+ * @param leader 主题分区领导者
+ * @param leaderEpoch 领导纪元
+ * @param isr ISR列表
+ * @param zkVersion zk版本
+ */
 case class LeaderAndIsr(var leader: Int, var leaderEpoch: Int, var isr: List[Int], var zkVersion: Int) {
   def this(leader: Int, isr: List[Int]) = this(leader, LeaderAndIsr.initialLeaderEpoch, isr, LeaderAndIsr.initialZKVersion)
 

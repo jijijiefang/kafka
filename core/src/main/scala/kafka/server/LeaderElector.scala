@@ -23,11 +23,25 @@ import kafka.utils.Logging
  * re-election and if it succeeds, it invokes the leader state change callback
  */
 trait LeaderElector extends Logging {
+  /**
+   * 启动
+   */
   def startup
 
+  /**
+   * 是否是Leader
+   * @return
+   */
   def amILeader : Boolean
 
+  /**
+   * 选举
+   * @return
+   */
   def elect: Boolean
 
+  /**
+   * 关闭
+   */
   def close
 }

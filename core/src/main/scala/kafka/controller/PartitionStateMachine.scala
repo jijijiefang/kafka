@@ -48,6 +48,7 @@ class PartitionStateMachine(controller: KafkaController) extends Logging {
   private val partitionState: mutable.Map[TopicAndPartition, PartitionState] = mutable.Map.empty
   private val brokerRequestBatch = new ControllerBrokerRequestBatch(controller)
   private val hasStarted = new AtomicBoolean(false)
+  //默认使用NoOpLeaderSelector
   private val noOpPartitionLeaderSelector = new NoOpLeaderSelector(controllerContext)
   private val topicChangeListener = new TopicChangeListener()
   private val deleteTopicsListener = new DeleteTopicsListener()
@@ -132,9 +133,9 @@ class PartitionStateMachine(controller: KafkaController) extends Logging {
   }
 
   /**
-   * This API is invoked by the partition change zookeeper listener
-   * @param partitions   The list of partitions that need to be transitioned to the target state
-   * @param targetState  The state that the partitions should be moved to
+   * This API is invoked by the partition change zookeeper listener 此API由分区变化zk监听器调用
+   * @param partitions   The list of partitions that need to be transitioned to the target state 分区列表需要更新成目标状态
+   * @param targetState  The state that the partitions should be moved to 目标状态
    */
   def handleStateChanges(partitions: Set[TopicAndPartition], targetState: PartitionState,
                          leaderSelector: PartitionLeaderSelector = noOpPartitionLeaderSelector,
@@ -341,7 +342,7 @@ class PartitionStateMachine(controller: KafkaController) extends Logging {
           stateChangeLogger.error("Controller %d epoch %d ".format(controllerId, controller.epoch) + failMsg)
           throw new StateChangeFailedException(failMsg)
         }
-        // elect new leader or throw exception
+        // elect new leader or throw exception 选择新领导或抛出异常
         val (leaderAndIsr, replicas) = leaderSelector.selectLeader(topicAndPartition, currentLeaderAndIsr)
         val (updateSucceeded, newVersion) = ReplicationUtils.updateLeaderAndIsr(zkUtils, topic, partition,
           leaderAndIsr, controller.epoch, currentLeaderAndIsr.zkVersion)
