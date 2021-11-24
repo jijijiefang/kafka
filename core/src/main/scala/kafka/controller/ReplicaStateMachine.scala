@@ -27,22 +27,22 @@ import kafka.controller.Callbacks._
 import kafka.utils.CoreUtils._
 
 /**
- * This class represents the state machine for replicas. It defines the states that a replica can be in, and
- * transitions to move the replica to another legal state. The different states that a replica can be in are -
+ * This class represents the state machine for replicas. It defines the states that a replica can be in, and 此类表示副本的状态机。它定义了复制副本可以处于的状态，以及将复制副本移动到另一个合法状态的转换
+ * transitions to move the replica to another legal state. The different states that a replica can be in are - 复制副本可以处于的不同状态为
  * 1. NewReplica        : The controller can create new replicas during partition reassignment. In this state, a
  *                        replica can only get become follower state change request.  Valid previous
- *                        state is NonExistentReplica
+ *                        state is NonExistentReplica 控制器可以在分区重新分配期间创建新副本。在此状态下，复制副本只能获得状态更改请求。有效的前一状态不存在副本
  * 2. OnlineReplica     : Once a replica is started and part of the assigned replicas for its partition, it is in this
  *                        state. In this state, it can get either become leader or become follower state change requests.
- *                        Valid previous state are NewReplica, OnlineReplica or OfflineReplica
+ *                        Valid previous state are NewReplica, OnlineReplica or OfflineReplica 一旦一个复制副本启动并为其分区分配了一部分复制副本，它就处于这种状态。在这种状态下，它可以获得“成为领导者”或“成为跟随者”状态更改请求。以前的有效状态为NewReplica、OnlineReplica或OfflineReplica
  * 3. OfflineReplica    : If a replica dies, it moves to this state. This happens when the broker hosting the replica
- *                        is down. Valid previous state are NewReplica, OnlineReplica
- * 4. ReplicaDeletionStarted: If replica deletion starts, it is moved to this state. Valid previous state is OfflineReplica
+ *                        is down. Valid previous state are NewReplica, OnlineReplica 如果副本死亡，它将移动到此状态。当承载复制副本的代理关闭时，会发生这种情况。以前的有效状态为NewReplica，OnlineReplica
+ * 4. ReplicaDeletionStarted: If replica deletion starts, it is moved to this state. Valid previous state is OfflineReplica 如果副本删除开始，它将移动到此状态。以前的有效状态为脱机副本
  * 5. ReplicaDeletionSuccessful: If replica responds with no error code in response to a delete replica request, it is
- *                        moved to this state. Valid previous state is ReplicaDeletionStarted
- * 6. ReplicaDeletionIneligible: If replica deletion fails, it is moved to this state. Valid previous state is ReplicaDeletionStarted
+ *                        moved to this state. Valid previous state is ReplicaDeletionStarted 如果复制副本响应删除复制副本请求时没有错误代码，则将其移动到此状态。以前的有效状态为ReplicateDeletionStarted
+ * 6. ReplicaDeletionIneligible: If replica deletion fails, it is moved to this state. Valid previous state is ReplicaDeletionStarted 如果副本删除失败，它将移动到此状态。以前的有效状态为ReplicateDeletionStarted
  * 7. NonExistentReplica: If a replica is deleted successfully, it is moved to this state. Valid previous state is
- *                        ReplicaDeletionSuccessful
+ *                        ReplicaDeletionSuccessful 如果成功删除复制副本，则将其移动到此状态。有效的先前状态为ReplicateDeletionSuccessful
  */
 class ReplicaStateMachine(controller: KafkaController) extends Logging {
   private val controllerContext = controller.controllerContext
@@ -61,39 +61,41 @@ class ReplicaStateMachine(controller: KafkaController) extends Logging {
    * Invoked on successful controller election. First registers a broker change listener since that triggers all
    * state transitions for replicas. Initializes the state of replicas for all partitions by reading from zookeeper.
    * Then triggers the OnlineReplica state change for all replicas.
+   * 在控制器选举成功后调用。首先注册Broker更改监听器，因为它会触发副本的所有状态转换。通过读取zookeeper来初始化所有分区的副本状态
+   * 然后触发所有副本更改为OnlineReplica状态
    */
   def startup() {
-    // initialize replica state
+    // initialize replica state 初始化副本状态
     initializeReplicaState()
-    // set started flag
+    // set started flag 设置已启动标识
     hasStarted.set(true)
-    // move all Online replicas to Online
+    // move all Online replicas to Online 修改所有在线的副本状态为“在线副本”
     handleStateChanges(controllerContext.allLiveReplicas(), OnlineReplica)
 
     info("Started replica state machine with initial state -> " + replicaState.toString())
   }
 
-  // register ZK listeners of the replica state machine
+  // register ZK listeners of the replica state machine 注册副本状态机的ZK监听器
   def registerListeners() {
-    // register broker change listener
+    // register broker change listener 注册Broker变化监听器
     registerBrokerChangeListener()
   }
 
-  // de-register ZK listeners of the replica state machine
+  // de-register ZK listeners of the replica state machine 取消注册副本状态机的ZK监听器
   def deregisterListeners() {
-    // de-register broker change listener
+    // de-register broker change listener 取消注册Broker变化监听器
     deregisterBrokerChangeListener()
   }
 
   /**
-   * Invoked on controller shutdown.
+   * Invoked on controller shutdown. 在控制器关闭时调用
    */
   def shutdown() {
-    // reset started flag
+    // reset started flag 重置已启动标记
     hasStarted.set(false)
-    // reset replica state
+    // reset replica state 重置副本状态
     replicaState.clear()
-    // de-register all ZK listeners
+    // de-register all ZK listeners 取消注册所有ZK监听器
     deregisterListeners()
 
     info("Stopped replica state machine")
@@ -323,6 +325,7 @@ class ReplicaStateMachine(controller: KafkaController) extends Logging {
   /**
    * Invoked on startup of the replica's state machine to set the initial state for replicas of all existing partitions
    * in zookeeper
+   * 在副本的状态机启动时调用，以设置zk中所有现有分区的副本的初始状态
    */
   private def initializeReplicaState() {
     for((topicPartition, assignedReplicas) <- controllerContext.partitionReplicaAssignment) {
@@ -347,7 +350,7 @@ class ReplicaStateMachine(controller: KafkaController) extends Logging {
   }
 
   /**
-   * This is the zookeeper listener that triggers all the state transitions for a replica
+   * This is the zookeeper listener that triggers all the state transitions for a replica 这是zk监听器，用于触发副本的所有状态转换
    * broker状态变化监听器，有新增或移除的broker调用
    */
   class BrokerChangeListener() extends IZkChildListener with Logging {
@@ -386,11 +389,21 @@ class ReplicaStateMachine(controller: KafkaController) extends Logging {
   }
 }
 
+/**
+ * 分区副本状态
+ */
 sealed trait ReplicaState { def state: Byte }
+//副本刚被分配，但是还没有开始工作时候的状态；
 case object NewReplica extends ReplicaState { val state: Byte = 1 }
+//代表分区剧本开始作时的状态，此时该副本是该分区的 Leader 或者 Follower
 case object OnlineReplica extends ReplicaState { val state: Byte = 2 }
+//代表分区副本所在的Broker Server宕机时所导致的副本状态
 case object OfflineReplica extends ReplicaState { val state: Byte = 3 }
+//代表分区副本下线之准备 开始删除的状态
 case object ReplicaDeletionStarted extends ReplicaState { val state: Byte = 4}
+//代表相关Broker Server正确响应分区副本被删除请求之后的状态
 case object ReplicaDeletionSuccessful extends ReplicaState { val state: Byte = 5}
+//代表相关Broker Server错误响应分区副本被删除请求之后的状态
 case object ReplicaDeletionIneligible extends ReplicaState { val state: Byte = 6}
+//代表分区副本被彻底删除之后的状态
 case object NonExistentReplica extends ReplicaState { val state: Byte = 7 }
