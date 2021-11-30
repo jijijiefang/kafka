@@ -110,26 +110,28 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime, threadNamePr
     .timeWindow(config.metricSampleWindowMs, TimeUnit.MILLISECONDS)
 
   val brokerState: BrokerState = new BrokerState
-
+  //业务逻辑实现层
   var apis: KafkaApis = null
   var authorizer: Option[Authorizer] = None
   var socketServer: SocketServer = null
+  //请求处理资源池
   var requestHandlerPool: KafkaRequestHandlerPool = null
-
+  //日志管理
   var logManager: LogManager = null
-
+  //分区副本管理
   var replicaManager: ReplicaManager = null
 
   var dynamicConfigHandlers: Map[String, ConfigHandler] = null
   var dynamicConfigManager: DynamicConfigManager = null
 
   var groupCoordinator: GroupCoordinator = null
-
+  //控制器
   var kafkaController: KafkaController = null
-
+  //后台任务定时调度器
   val kafkaScheduler = new KafkaScheduler(config.backgroundThreads)
-
+  //检查状态检查器
   var kafkaHealthcheck: KafkaHealthcheck = null
+  //元数据缓存
   val metadataCache: MetadataCache = new MetadataCache(config.brokerId)
 
   var zkUtils: ZkUtils = null
@@ -197,15 +199,15 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime, threadNamePr
           isShuttingDown)
         replicaManager.startup()
 
-        /* start kafka controller */
+        /* start kafka controller 启动kafka控制器*/
         kafkaController = new KafkaController(config, zkUtils, brokerState, kafkaMetricsTime, metrics, threadNamePrefix)
         kafkaController.startup()
 
-        /* start group coordinator 协调器*/
+        /* start group coordinator 组协调器*/
         groupCoordinator = GroupCoordinator(config, zkUtils, replicaManager, kafkaMetricsTime)
         groupCoordinator.startup()
 
-        /* Get the authorizer and initialize it if one is specified.*/
+        /* Get the authorizer and initialize it if one is specified.获取授权者并在指定授权者时对其进行初始化*/
         authorizer = Option(config.authorizerClassName).filter(_.nonEmpty).map { authorizerClassName =>
           val authZ = CoreUtils.createObject[Authorizer](authorizerClassName)
           authZ.configure(config.originals())
@@ -215,12 +217,13 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime, threadNamePr
         /* start processing requests 请求处理器*/
         apis = new KafkaApis(socketServer.requestChannel, replicaManager, groupCoordinator,
           kafkaController, zkUtils, config.brokerId, config, metadataCache, metrics, authorizer)
+        //默认线程数8
         requestHandlerPool = new KafkaRequestHandlerPool(config.brokerId, socketServer.requestChannel, apis, config.numIoThreads)
         brokerState.newState(RunningAsBroker)
 
         Mx4jLoader.maybeLoad()
 
-        /* start dynamic config manager */
+        /* start dynamic config manager 启动动态配置管理器*/
         dynamicConfigHandlers = Map[String, ConfigHandler](ConfigType.Topic -> new TopicConfigHandler(logManager, config),
                                                            ConfigType.Client -> new ClientIdConfigHandler(apis.quotaManagers))
 
@@ -246,10 +249,10 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime, threadNamePr
           config.interBrokerProtocolVersion)
         kafkaHealthcheck.startup()
 
-        // Now that the broker id is successfully registered via KafkaHealthcheck, checkpoint it
+        // Now that the broker id is successfully registered via KafkaHealthcheck, checkpoint it 现在代理id已通过Kafka检查检查器成功注册，请检查它
         checkpointBrokerId(config.brokerId)
 
-        /* register broker metrics */
+        /* register broker metrics 注册broker监控指标*/
         registerStats()
 
         shutdownLatch = new CountDownLatch(1)

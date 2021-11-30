@@ -55,17 +55,24 @@ class ControllerContext(val zkUtils: ZkUtils,
                         val zkSessionTimeout: Int) {
   var controllerChannelManager: ControllerChannelManager = null
   val controllerLock: ReentrantLock = new ReentrantLock()
+  //处于关机状态的Broker列表，存储的是Broker Server的ID集合
   var shuttingDownBrokerIds: mutable.Set[Int] = mutable.Set.empty
   val brokerShutdownLock: Object = new Object
   var epoch: Int = KafkaController.InitialControllerEpoch - 1
   var epochZkVersion: Int = KafkaController.InitialControllerEpochZkVersion - 1
+  //当前Topic列表
   var allTopics: Set[String] = Set.empty
+  //当前TopicAndPartition的AR列表
   var partitionReplicaAssignment: mutable.Map[TopicAndPartition, Seq[Int]] = mutable.Map.empty
+  //当前TopicAndPartition的Leader和ISR列表等
   var partitionLeadershipInfo: mutable.Map[TopicAndPartition, LeaderIsrAndControllerEpoch] = mutable.Map.empty
+  //处于TopicAndPartition重分配状态的AR列表
   val partitionsBeingReassigned: mutable.Map[TopicAndPartition, ReassignedPartitionsContext] = new mutable.HashMap
+  //为了负载均衡，处于正在经历首选副本选举状态的TopicAndPartition列表
   val partitionsUndergoingPreferredReplicaElection: mutable.Set[TopicAndPartition] = new mutable.HashSet
-
+  //处于在线状态的Broker列表，存储的是Broker Server 的Broker对象
   private var liveBrokersUnderlying: Set[Broker] = Set.empty
+  //处于在线状态的Broker列表，存储的是Broker Server的ID集合
   private var liveBrokerIdsUnderlying: Set[Int] = Set.empty
 
   // setter
@@ -377,6 +384,7 @@ class KafkaController(val config : KafkaConfig, zkUtils: ZkUtils, val brokerStat
         info("starting the partition rebalance scheduler")
         //自动重平衡调度器启动
         autoRebalanceScheduler.startup()
+        //首次延迟5秒，后续每次延迟300秒检查执行
         autoRebalanceScheduler.schedule("partition-rebalance-thread", checkAndTriggerPartitionRebalance,
           5, config.leaderImbalanceCheckIntervalSeconds.toLong, TimeUnit.SECONDS)
       }
@@ -695,6 +703,11 @@ class KafkaController(val config : KafkaConfig, zkUtils: ZkUtils, val brokerStat
     }
   }
 
+  /**
+   * 首选副本选举
+   * @param partitions 主题分区
+   * @param isTriggeredByAutoRebalance 是否被自动重平衡触发
+   */
   def onPreferredReplicaElection(partitions: Set[TopicAndPartition], isTriggeredByAutoRebalance: Boolean = false) {
     info("Starting preferred replica leader election for partitions %s".format(partitions.mkString(",")))
     try {
@@ -1207,6 +1220,9 @@ class KafkaController(val config : KafkaConfig, zkUtils: ZkUtils, val brokerStat
     finalLeaderIsrAndControllerEpoch
   }
 
+  /**
+   * 会话过期监听器
+   */
   class SessionExpirationListener() extends IZkStateListener with Logging {
     this.logIdent = "[SessionExpirationListener on " + config.brokerId + "], "
     @throws(classOf[Exception])
@@ -1217,7 +1233,7 @@ class KafkaController(val config : KafkaConfig, zkUtils: ZkUtils, val brokerStat
     /**
      * Called after the zookeeper session has expired and a new session has been created. You would have to re-create
      * any ephemeral nodes here.
-     *
+     * zookeeper会话过期并创建新会话后调用。您必须在此处重新创建任何临时节点
      * @throws Exception
      *             On any error.
      */
@@ -1235,23 +1251,31 @@ class KafkaController(val config : KafkaConfig, zkUtils: ZkUtils, val brokerStat
     }
   }
 
+  /**
+   * 检查并触发分区重新平衡
+   */
   private def checkAndTriggerPartitionRebalance(): Unit = {
     if (isActive()) {
       trace("checking need to trigger partition rebalance")
-      // get all the active brokers
+      // get all the active brokers 获取所有活动的Broker
+      //Broker主题首选副本
       var preferredReplicasForTopicsByBrokers: Map[Int, Map[TopicAndPartition, Seq[Int]]] = null
       inLock(controllerContext.controllerLock) {
+        //
         preferredReplicasForTopicsByBrokers =
+          //控制器上下文分区AR列表 按照Preferred Replica分组，筛选出不在 主题是否已排队等待删除集合的副本
           controllerContext.partitionReplicaAssignment.filterNot(p => deleteTopicManager.isTopicQueuedUpForDeletion(p._1.topic)).groupBy {
             case(topicAndPartition, assignedReplicas) => assignedReplicas.head
           }
       }
       debug("preferred replicas by broker " + preferredReplicasForTopicsByBrokers)
-      // for each broker, check if a preferred replica election needs to be triggered
+      // for each broker, check if a preferred replica election needs to be triggered 对于每个代理，检查是否需要触发首选副本选择
+      // 分别针对每个Broker Server 上的Partition进行处理
       preferredReplicasForTopicsByBrokers.foreach {
         case(leaderBroker, topicAndPartitionsForBroker) => {
           var imbalanceRatio: Double = 0
           var topicsNotInPreferredReplica: Map[TopicAndPartition, Seq[Int]] = null
+          //统计Leader Replica和Preferred Replica不相等的Partition
           inLock(controllerContext.controllerLock) {
             topicsNotInPreferredReplica =
               topicAndPartitionsForBroker.filter {
@@ -1261,24 +1285,33 @@ class KafkaController(val config : KafkaConfig, zkUtils: ZkUtils, val brokerStat
                 }
               }
             debug("topics not in preferred replica " + topicsNotInPreferredReplica)
+            //计算位于该Broker Server上的Partition个数
             val totalTopicPartitionsForBroker = topicAndPartitionsForBroker.size
+            //计算Leader Replica和Preferred Replica不相等的Partition 的个数
             val totalTopicPartitionsNotLedByBroker = topicsNotInPreferredReplica.size
+            //不平衡度
             imbalanceRatio = totalTopicPartitionsNotLedByBroker.toDouble / totalTopicPartitionsForBroker
             trace("leader imbalance ratio for broker %d is %f".format(leaderBroker, imbalanceRatio))
           }
           // check ratio and if greater than desired ratio, trigger a rebalance for the topic partitions
-          // that need to be on this broker
-          if (imbalanceRatio > (config.leaderImbalancePerBrokerPercentage.toDouble / 100)) {
+          // that need to be on this broker 检查比率，如果大于所需比率，则触发需要在此代理上的主题分区的重新平衡
+          if (imbalanceRatio > (config.leaderImbalancePerBrokerPercentage.toDouble / 100)) {//默认10%
             topicsNotInPreferredReplica.foreach {
               case(topicPartition, replicas) => {
                 inLock(controllerContext.controllerLock) {
                   // do this check only if the broker is live and there are no partitions being reassigned currently
-                  // and preferred replica election is not in progress
+                  // and preferred replica election is not in progress 仅当代理处于活动状态且当前没有重新分配分区且首选副本选择未进行时，才执行此检查
+                  //确保该Broker Server在线
                   if (controllerContext.liveBrokerIds.contains(leaderBroker) &&
+                      //由于负载均衡只在集群空闲的时候执行，因此此时系统必须没有在进行分区重分配
                       controllerContext.partitionsBeingReassigned.size == 0 &&
+                      //同时没有在进行分区的Preferred Replica选举
                       controllerContext.partitionsUndergoingPreferredReplicaElection.size == 0 &&
+                      //并且该Topic没有在准备删除的队列中
                       !deleteTopicManager.isTopicQueuedUpForDeletion(topicPartition.topic) &&
+                      //并且该Topic没有被删除
                       controllerContext.allTopics.contains(topicPartition.topic)) {
+                    //最后就是利用PreferredReplicaPartitionLeaderSelector选举器针对Partition的AR列表重新进行选举
                     onPreferredReplicaElection(Set(topicPartition), true)
                   }
                 }
@@ -1292,12 +1325,12 @@ class KafkaController(val config : KafkaConfig, zkUtils: ZkUtils, val brokerStat
 }
 
 /**
- * Starts the partition reassignment process unless -
- * 1. Partition previously existed
- * 2. New replicas are the same as existing replicas
- * 3. Any replica in the new set of replicas are dead
+ * Starts the partition reassignment process unless - 开始分区重新分配过程除非
+ * 1. Partition previously existed 以前存在的分区
+ * 2. New replicas are the same as existing replicas 新副本与现有副本相同
+ * 3. Any replica in the new set of replicas are dead 新副本集中的任何副本都已失效
  * If any of the above conditions are satisfied, it logs an error and removes the partition from list of reassigned
- * partitions.
+ * partitions. 如果满足上述任何条件，它将记录一个错误并从重新分配的分区列表中删除该分区。
  */
 class PartitionsReassignedListener(controller: KafkaController) extends IZkDataListener with Logging {
   this.logIdent = "[PartitionsReassignedListener on " + controller.config.brokerId + "]: "
@@ -1305,25 +1338,30 @@ class PartitionsReassignedListener(controller: KafkaController) extends IZkDataL
   val controllerContext = controller.controllerContext
 
   /**
-   * Invoked when some partitions are reassigned by the admin command
+   * Invoked when some partitions are reassigned by the admin command 当admin命令重新分配某些分区时调用
    * @throws Exception On any error.
    */
   @throws(classOf[Exception])
   def handleDataChange(dataPath: String, data: Object) {
     debug("Partitions reassigned listener fired for path %s. Record partitions to be reassigned %s"
       .format(dataPath, data))
+    //分区重新分配数据
     val partitionsReassignmentData = zkUtils.parsePartitionReassignmentData(data.toString)
+    //遍历筛选控制器上下文正在重新分配的分区集合中包含当前节点的副本
     val partitionsToBeReassigned = inLock(controllerContext.controllerLock) {
       partitionsReassignmentData.filterNot(p => controllerContext.partitionsBeingReassigned.contains(p._1))
     }
     partitionsToBeReassigned.foreach { partitionToBeReassigned =>
       inLock(controllerContext.controllerLock) {
+        //主题是否已排队等待删除
         if(controller.deleteTopicManager.isTopicQueuedUpForDeletion(partitionToBeReassigned._1.topic)) {
           error("Skipping reassignment of partition %s for topic %s since it is currently being deleted"
             .format(partitionToBeReassigned._1, partitionToBeReassigned._1.topic))
+          //从重新分配的分区中删除分区
           controller.removePartitionFromReassignedPartitions(partitionToBeReassigned._1)
         } else {
           val context = new ReassignedPartitionsContext(partitionToBeReassigned._2)
+          //启动为主题分区重新分配副本
           controller.initiateReassignReplicasForTopicPartition(partitionToBeReassigned._1, context)
         }
       }

@@ -20,12 +20,13 @@ import java.nio.channels.ScatteringByteChannel;
 
 /**
  * A size delimited Receive that consists of a 4 byte network-ordered size N followed by N bytes of content
+ * 一种以大小分隔的接收，由4字节网络顺序大小N和N字节内容组成
  */
 public class NetworkReceive implements Receive {
 
     public final static String UNKNOWN_SOURCE = "";
     public final static int UNLIMITED = -1;
-
+    //来源于的brokerId
     private final String source;
     //存放消息长度
     private final ByteBuffer size;

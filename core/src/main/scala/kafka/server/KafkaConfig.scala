@@ -969,8 +969,8 @@ class KafkaConfig(val props: java.util.Map[_, _], doLog: Boolean) extends Abstra
     require(distinctProtocols.size == endpoints.size, "Each listener must have a different protocol")
   }
 
-  // If the user did not define listeners but did define host or port, let's use them in backward compatible way
-  // If none of those are defined, we default to PLAINTEXT://:9092
+  // If the user did not define listeners but did define host or port, let's use them in backward compatible way 如果用户没有定义监听器，但定义了主机或端口，那么让我们以向后兼容的方式使用它们。
+  // If none of those are defined, we default to PLAINTEXT://:9092 如果没有定义任何监听器，我们将默认为明文://:9092
   private def getListeners(): immutable.Map[SecurityProtocol, EndPoint] = {
     if (getString(KafkaConfig.ListenersProp) != null) {
       validateUniquePortAndProtocol(getString(KafkaConfig.ListenersProp))

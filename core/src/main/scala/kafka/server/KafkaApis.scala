@@ -48,7 +48,8 @@ import scala.collection.JavaConverters._
 import org.apache.kafka.common.requests.SaslHandshakeResponse
 
 /**
- * Logic to handle the various Kafka requests 处理各种Kafka请求的逻辑
+ * Logic to handle the various Kafka requests
+ * 处理各种Kafka请求的逻辑
  */
 class KafkaApis(val requestChannel: RequestChannel,
                 val replicaManager: ReplicaManager,

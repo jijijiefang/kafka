@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A nioSelector interface for doing non-blocking multi-connection network I/O.
+ * 用于执行非阻塞多连接网络I/O的nioSelector接口
  * <p>
  * This class works with {@link NetworkSend} and {@link NetworkReceive} to transmit size-delimited network requests and
  * responses.
@@ -65,16 +66,23 @@ import java.util.concurrent.TimeUnit;
 public class Selector implements Selectable {
 
     private static final Logger log = LoggerFactory.getLogger(Selector.class);
-
+    //NIO选择器
     private final java.nio.channels.Selector nioSelector;
-    //brokerId:KafkaChannel
+    //brokerId:KafkaChannel 存放Broker对应KafkaChannel的容器
     private final Map<String, KafkaChannel> channels;
+    //完成发送集合
     private final List<Send> completedSends;
+    //完成接收集合
     private final List<NetworkReceive> completedReceives;
+    //处理粘包拆包阶段接收的容器
     private final Map<KafkaChannel, Deque<NetworkReceive>> stagedReceives;
+    //立即连接的选择键
     private final Set<SelectionKey> immediatelyConnectedKeys;
+    //断开连接集合
     private final List<String> disconnected;
+    //已连接集合
     private final List<String> connected;
+    //发送失败集合
     private final List<String> failedSends;
     private final Time time;
     private final SelectorMetrics sensors;
@@ -91,6 +99,7 @@ public class Selector implements Selectable {
 
     /**
      * Create a new nioSelector
+     * 创建一个新的选择器
      */
     public Selector(int maxReceiveSize, long connectionMaxIdleMs, Metrics metrics, Time time, String metricGrpPrefix, Map<String, String> metricTags, boolean metricsPerConnection, ChannelBuilder channelBuilder) {
         try {
@@ -114,7 +123,7 @@ public class Selector implements Selectable {
         this.sensors = new SelectorMetrics(metrics);
         this.channelBuilder = channelBuilder;
         // initial capacity and load factor are default, we set them explicitly because we want to set accessOrder = true
-        this.lruConnections = new LinkedHashMap<>(16, .75F, true);
+        this.lruConnections = new LinkedHashMap<>(16, .75F, true);//使用LinkedHashMap作为LRU连接的容器
         currentTimeNanos = time.nanoseconds();
         nextIdleCloseCheckTime = currentTimeNanos + connectionsMaxIdleNanos;
         this.metricsPerConnection = metricsPerConnection;
@@ -183,9 +192,9 @@ public class Selector implements Selectable {
     }
 
     /**
-     * Register the nioSelector with an existing channel
-     * Use this on server-side, when a connection is accepted by a different thread but processed by the Selector
-     * Note that we are not checking if the connection id is valid - since the connection already exists
+     * Register the nioSelector with an existing channel 使用已存在的通道向NIO的选择器注册
+     * Use this on server-side, when a connection is accepted by a different thread but processed by the Selector 当一个连接被另一个线程接受但被选择器处理时，在服务器端使用此选项
+     * Note that we are not checking if the connection id is valid - since the connection already exists 注意，我们没有检查连接id是否有效-因为连接已经存在
      */
     public void register(String id, SocketChannel socketChannel) throws ClosedChannelException {
         SelectionKey key = socketChannel.register(nioSelector, SelectionKey.OP_READ);

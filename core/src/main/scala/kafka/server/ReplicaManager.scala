@@ -121,7 +121,7 @@ class ReplicaManager(val config: KafkaConfig,
                      val logManager: LogManager,
                      val isShuttingDown: AtomicBoolean,
                      threadNamePrefix: Option[String] = None) extends Logging with KafkaMetricsGroup {
-  /* epoch of the controller that last changed the leader */
+  /* epoch of the controller that last changed the leader 控制器纪元*/
   @volatile var controllerEpoch: Int = KafkaController.InitialControllerEpoch - 1
   private val localBrokerId = config.brokerId
   private val allPartitions = new Pool[(String, Int), Partition](valueFactory = Some { case (t, p) =>
@@ -182,11 +182,11 @@ class ReplicaManager(val config: KafkaConfig,
     }
   }
   /**
-   * This function periodically runs to see if ISR needs to be propagated. It propagates ISR when:
-   * 1. There is ISR change not propagated yet.
-   * 2. There is no ISR Change in the last five seconds, or it has been more than 60 seconds since the last ISR propagation.
+   * This function periodically runs to see if ISR needs to be propagated. It propagates ISR when: 此函数定期运行，以查看是否需要传播ISR，在以下情况下传播ISR：
+   * 1. There is ISR change not propagated yet. 尚未传播ISR更改
+   * 2. There is no ISR Change in the last five seconds, or it has been more than 60 seconds since the last ISR propagation. 在过去五秒钟内没有ISR变化，或者自上次ISR传播以来已超过60秒
    * This allows an occasional ISR change to be propagated within a few seconds, and avoids overwhelming controller and
-   * other brokers when large amount of ISR change occurs.
+   * other brokers when large amount of ISR change occurs. 这允许在几秒钟内传播偶尔的ISR更改，并避免在发生大量ISR更改时压倒控制器和其他代理
    */
   def maybePropagateIsrChanges() {
     val now = System.currentTimeMillis()
@@ -226,8 +226,9 @@ class ReplicaManager(val config: KafkaConfig,
   }
 
   def startup() {
-    // start ISR expiration thread
+    // start ISR expiration thread 启动ISR过期线程
     scheduler.schedule("isr-expiration", maybeShrinkIsr, period = config.replicaLagTimeMaxMs, unit = TimeUnit.MILLISECONDS)
+    //启动ISR变化传播线程
     scheduler.schedule("isr-change-propagation", maybePropagateIsrChanges, period = 2500L, unit = TimeUnit.MILLISECONDS)
   }
 
@@ -471,7 +472,7 @@ class ReplicaManager(val config: KafkaConfig,
   /**
    * Fetch messages from the leader replica, and wait until enough data can be fetched and return;
    * the callback function will be triggered either when timeout or required fetch info is satisfied
-   * 从
+   * 从Leader副本获取消息，并等待足够的数据能够获取并返回；当超时或满足所需的获取信息时，将触发回调函数
    */
   def fetchMessages(timeout: Long,
                     replicaId: Int,
@@ -523,6 +524,7 @@ class ReplicaManager(val config: KafkaConfig,
 
   /**
    * Read from a single topic/partition at the given offset upto maxSize bytes
+   * 以给定偏移量从单个主题/分区读取最大字节数
    */
   def readFromLocalLog(fetchOnlyFromLeader: Boolean,
                        readOnlyCommitted: Boolean,

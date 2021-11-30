@@ -47,7 +47,7 @@ object RequestChannel extends Logging {
 
   case class Request(processor: Int, connectionId: String, session: Session, private var buffer: ByteBuffer, startTimeMs: Long, securityProtocol: SecurityProtocol) {
     // These need to be volatile because the readers are in the network thread and the writers are in the request
-    // handler threads or the purgatory threads
+    // handler threads or the purgatory threads 这些需要是volatile，因为阅读者在网络线程中，而写入者在请求处理程序线程或炼狱线程中
     @volatile var requestDequeueTimeMs = -1L
     @volatile var apiLocalCompleteTimeMs = -1L
     @volatile var responseCompleteTimeMs = -1L
@@ -176,10 +176,18 @@ object RequestChannel extends Logging {
   case object CloseConnectionAction extends ResponseAction
 }
 
+/**
+ * RequestChannel 主要用于缓存Socket的请求和响应
+ * @param numProcessors 处理器下标索引
+ * @param queueSize 队列容量
+ */
 class RequestChannel(val numProcessors: Int, val queueSize: Int) extends KafkaMetricsGroup {
   private var responseListeners: List[(Int) => Unit] = Nil
+  //请求队列
   private val requestQueue = new ArrayBlockingQueue[RequestChannel.Request](queueSize)
+  //响应队列数组，为处理器数量
   private val responseQueues = new Array[BlockingQueue[RequestChannel.Response]](numProcessors)
+  //为每一个处理器，新建一个响应队列
   for(i <- 0 until numProcessors)
     responseQueues(i) = new LinkedBlockingQueue[RequestChannel.Response]()
 
@@ -203,8 +211,12 @@ class RequestChannel(val numProcessors: Int, val queueSize: Int) extends KafkaMe
     )
   }
 
-  /** Send a request to be handled, potentially blocking until there is room in the queue for the request */
+  /**
+   * Send a request to be handled, potentially blocking until there is room in the queue for the request
+   * 发送要处理的请求，可能会阻塞，直到队列中有空间容纳该请求
+   */
   def sendRequest(request: RequestChannel.Request) {
+    //请求放入请求队列
     requestQueue.put(request)
   }
 
@@ -213,15 +225,19 @@ class RequestChannel(val numProcessors: Int, val queueSize: Int) extends KafkaMe
   /**
    * Send a response back to the socket server to be sent over the network
    * 将响应发送回要通过网络发送的套接字服务器
-    * @param response 响应
+   * @param response 响应
    */
   def sendResponse(response: RequestChannel.Response) {
+    //放入响应对应处理器的响应队列
     responseQueues(response.processor).put(response)
     for(onResponse <- responseListeners)
       onResponse(response.processor)
   }
 
-  /** No operation to take for the request, need to read more over the network 无需对请求执行任何操作，需要通过网络阅读更多内容*/
+  /**
+   * No operation to take for the request, need to read more over the network
+   * 无需对请求执行任何操作，需要通过网络阅读更多内容
+   */
   def noOperation(processor: Int, request: RequestChannel.Request) {
     responseQueues(processor).put(new RequestChannel.Response(processor, request, null, RequestChannel.NoOpAction))
     for(onResponse <- responseListeners)
@@ -235,15 +251,15 @@ class RequestChannel(val numProcessors: Int, val queueSize: Int) extends KafkaMe
       onResponse(processor)
   }
 
-  /** Get the next request or block until specified time has elapsed */
+  /** Get the next request or block until specified time has elapsed 阻塞指定时间获取*/
   def receiveRequest(timeout: Long): RequestChannel.Request =
     requestQueue.poll(timeout, TimeUnit.MILLISECONDS)
 
-  /** Get the next request or block until there is one */
+  /** Get the next request or block until there is one 阻塞直到获取一个请求*/
   def receiveRequest(): RequestChannel.Request =
     requestQueue.take()
 
-  /** Get a response for the given processor if there is one */
+  /** Get a response for the given processor if there is one 如果有，获取给定处理器的响应*/
   def receiveResponse(processor: Int): RequestChannel.Response = {
     val response = responseQueues(processor).poll()
     if (response != null)
