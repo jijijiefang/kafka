@@ -53,13 +53,13 @@ class FileMessageSet private[kafka](@volatile var file: File,
   /* the size of the message set in bytes 消息集的大小*/
   private val _size =
     if(isSlice)
-      new AtomicInteger(end - start) // don't check the file size if this is just a slice view
+      new AtomicInteger(end - start) // don't check the file size if this is just a slice view 如果这只是一个切片视图，不要检查文件大小
     else
       new AtomicInteger(math.min(channel.size.toInt, end) - start)
 
-  /* if this is not a slice, update the file pointer to the end of the file */
+  /* if this is not a slice, update the file pointer to the end of the file 如果这不是一个切片，则更新指向文件末尾的文件指针*/
   if (!isSlice)
-    /* set the file position to the last byte in the file */
+    /* set the file position to the last byte in the file 将文件位置设置为文件中的最后一个字节*/
     channel.position(math.min(channel.size.toInt, end))
 
   /**

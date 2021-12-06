@@ -29,56 +29,56 @@ import kafka.utils.CoreUtils.inLock
 import kafka.common.InvalidOffsetException
 
 /**
- * An index that maps offsets to physical file locations for a particular log segment. This index may be sparse:
- * that is it may not hold an entry for all messages in the log.
+ * An index that maps offsets to physical file locations for a particular log segment. This index may be sparse: 将偏移量映射到特定日志段的物理文件位置的索引
+ * that is it may not hold an entry for all messages in the log. 此索引可能是稀疏的：也就是说，它可能不包含日志中所有消息的条目
  * 
  * The index is stored in a file that is pre-allocated to hold a fixed maximum number of 8-byte entries.
- * 
+ * 索引存储在一个文件中，该文件预先分配用于保存固定最大数量的8字节条目
  * The index supports lookups against a memory-map of this file. These lookups are done using a simple binary search variant
  * to locate the offset/location pair for the greatest offset less than or equal to the target offset.
- * 
+ * 索引支持查找此文件的内存映射。这些查找是使用简单的二进制搜索变量来定位小于或等于目标偏移量的最大偏移量的偏移量/位置对
  * Index files can be opened in two ways: either as an empty, mutable index that allows appends or
  * an immutable read-only index file that has previously been populated. The makeReadOnly method will turn a mutable file into an 
  * immutable one and truncate off any extra bytes. This is done when the index file is rolled over.
- * 
+ * 索引文件可以通过两种方式打开：一种是作为允许追加的空的可变索引打开，另一种是作为以前已填充的不可变只读索引文件打开。makeReadOnly方法会将可变文件转换为不可变文件，并截断任何额外的字节。这是在翻转索引文件时完成的。
  * No attempt is made to checksum the contents of this file, in the event of a crash it is rebuilt.
- * 
+ * 不会尝试对此文件的内容进行校验和，如果发生崩溃，则会重新生成该文件。
  * The file format is a series of entries. The physical format is a 4 byte "relative" offset and a 4 byte file location for the 
  * message with that offset. The offset stored is relative to the base offset of the index file. So, for example,
  * if the base offset was 50, then the offset 55 would be stored as 5. Using relative offsets in this way let's us use
  * only 4 bytes for the offset.
- * 
+ * 文件格式是一系列条目。物理格式是4字节的“相对”偏移量，以及具有该偏移量的消息的4字节文件位置。存储的偏移量相对于索引文件的基准偏移量。因此，例如，如果基准偏移量为50，则偏移量55将存储为5。以这种方式使用相对偏移量，让我们仅使用4个字节作为偏移量。
  * The frequency of entries is up to the user of this class.
- * 
+ * 条目的频率由该类的用户决定。
  * All external APIs translate from relative offsets to full offsets, so users of this class do not interact with the internal 
- * storage format.
+ * storage format. 所有外部API都从相对偏移量转换为完整偏移量，因此此类用户不会与内部存储格式交互。
  */
 class OffsetIndex(@volatile private[this] var _file: File, val baseOffset: Long, val maxIndexSize: Int = -1) extends Logging {
   
   private val lock = new ReentrantLock
   
-  /* initialize the memory mapping for this index */
+  /* initialize the memory mapping for this index 初始化此索引的内存映射*/
   @volatile
   private[this] var mmap: MappedByteBuffer = {
     val newlyCreated = _file.createNewFile()
     val raf = new RandomAccessFile(_file, "rw")
     try {
-      /* pre-allocate the file if necessary */
+      /* pre-allocate the file if necessary 如有必要，预先分配文件*/
       if (newlyCreated) {
         if (maxIndexSize < 8)
           throw new IllegalArgumentException("Invalid max index size: " + maxIndexSize)
         raf.setLength(roundToExactMultiple(maxIndexSize, 8))
       }
 
-      /* memory-map the file */
+      /* memory-map the file 内存映射文件*/
       val len = raf.length()
       val idx = raf.getChannel.map(FileChannel.MapMode.READ_WRITE, 0, len)
 
-      /* set the position in the index for the next entry */
+      /* set the position in the index for the next entry 为下一个条目设置索引中的位置*/
       if (newlyCreated)
         idx.position(0)
       else
-        // if this is a pre-existing index, assume it is all valid and set position to last entry
+        // if this is a pre-existing index, assume it is all valid and set position to last entry 如果这是一个预先存在的索引，则假定它全部有效，并将位置设置为最后一个条目
         idx.position(roundToExactMultiple(idx.limit, 8))
       idx
     } finally {
@@ -86,11 +86,11 @@ class OffsetIndex(@volatile private[this] var _file: File, val baseOffset: Long,
     }
   }
 
-  /* the number of eight-byte entries currently in the index */
+  /* the number of eight-byte entries currently in the index 当前在索引中的八字节项的数目*/
   @volatile
   private[this] var _entries = mmap.position / 8
 
-  /* The maximum number of eight-byte entries this index can hold */
+  /* The maximum number of eight-byte entries this index can hold 此索引可容纳的最大八字节项数*/
   @volatile
   private[this] var _maxEntries = mmap.limit / 8
 
@@ -124,12 +124,13 @@ class OffsetIndex(@volatile private[this] var _file: File, val baseOffset: Long,
   /**
    * Find the largest offset less than or equal to the given targetOffset 
    * and return a pair holding this offset and its corresponding physical file position.
+   * 找到小于或等于给定targetOffset的最大偏移量，并返回一对包含此偏移量及其相应的物理文件位置的偏移量
+   * @param targetOffset The offset to look up. 要查找的偏移量
    * 
-   * @param targetOffset The offset to look up.
-   * 
-   * @return The offset found and the corresponding file position for this offset. 
+   * @return The offset found and the corresponding file position for this offset. 找到的偏移量以及该偏移量对应的文件位置
    * If the target offset is smaller than the least entry in the index (or the index is empty),
    * the pair (baseOffset, 0) is returned.
+   * 如果目标偏移量小于索引中的最小项（或索引为空），则返回该对(baseOffset，0)
    */
   def lookup(targetOffset: Long): OffsetPosition = {
     maybeLock(lock) {
@@ -152,10 +153,10 @@ class OffsetIndex(@volatile private[this] var _file: File, val baseOffset: Long,
    * @return The slot found or -1 if the least entry in the index is larger than the target offset or the index is empty
    */
   private def indexSlotFor(idx: ByteBuffer, targetOffset: Long): Int = {
-    // we only store the difference from the base offset so calculate that
+    // we only store the difference from the base offset so calculate that 我们只存储与基准偏移的差值，因此计算
     val relOffset = targetOffset - baseOffset
     
-    // check if the index is empty
+    // check if the index is empty 检查索引是否为空
     if (_entries == 0)
       return -1
     

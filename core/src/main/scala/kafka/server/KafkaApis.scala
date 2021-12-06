@@ -211,6 +211,7 @@ class KafkaApis(val requestChannel: RequestChannel,
 
   /**
    * Handle an offset commit request
+   * 处理偏移提交请求
    */
   def handleOffsetCommitRequest(request: RequestChannel.Request) {
     val header = request.header
@@ -236,7 +237,7 @@ class KafkaApis(val requestChannel: RequestChannel,
         case (topicPartition, offsetMetadata) => authorize(request.session, Read, new Resource(Topic, topicPartition.topic))
       }
 
-      // the callback for sending an offset commit response
+      // the callback for sending an offset commit response 用于发送偏移量提交响应的回调
       def sendResponseCallback(commitStatus: immutable.Map[TopicPartition, Short]) {
         val mergedCommitStatus = commitStatus ++ unauthorizedRequestInfo.mapValues(_ => Errors.TOPIC_AUTHORIZATION_FAILED.code)
 
@@ -256,7 +257,7 @@ class KafkaApis(val requestChannel: RequestChannel,
       if (authorizedRequestInfo.isEmpty)
         sendResponseCallback(Map.empty)
       else if (header.apiVersion == 0) {
-        // for version 0 always store offsets to ZK
+        // for version 0 always store offsets to ZK 对于版本0，始终将偏移量存储到ZK
         val responseInfo = authorizedRequestInfo.map {
           case (topicPartition, partitionData) =>
             val topicDirs = new ZKGroupTopicDirs(offsetCommitRequest.groupId, topicPartition.topic)
@@ -275,10 +276,10 @@ class KafkaApis(val requestChannel: RequestChannel,
         }
         sendResponseCallback(responseInfo)
       } else {
-        // for version 1 and beyond store offsets in offset manager
+        // for version 1 and beyond store offsets in offset manager 对于版本1及更高版本，在偏移管理器中存储偏移
 
-        // compute the retention time based on the request version:
-        // if it is v1 or not specified by user, we can use the default retention
+        // compute the retention time based on the request version: 根据请求版本计算保留时间：
+        // if it is v1 or not specified by user, we can use the default retention 如果是v1或不是用户指定的，我们可以使用默认保留时间
         val offsetRetention =
           if (header.apiVersion <= 1 ||
             offsetCommitRequest.retentionTime == OffsetCommitRequest.DEFAULT_RETENTION_TIME)
@@ -308,7 +309,7 @@ class KafkaApis(val requestChannel: RequestChannel,
           )
         }
 
-        // call coordinator to handle commit offset
+        // call coordinator to handle commit offset 调用协调器来处理提交偏移量
         coordinator.handleCommitOffsets(
           offsetCommitRequest.groupId,
           offsetCommitRequest.memberId,
@@ -430,6 +431,7 @@ class KafkaApis(val requestChannel: RequestChannel,
 
   /**
    * Handle a fetch request
+   * 处理拉取请求
    */
   def handleFetchRequest(request: RequestChannel.Request) {
     val fetchRequest = request.requestObj.asInstanceOf[FetchRequest]

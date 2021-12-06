@@ -97,7 +97,7 @@ class Log(val dir: File,
       0
   }
 
-  /* the actual segments of the log 日志的实际段*/
+  /* the actual segments of the log 日志的实际段,使用跳表*/
   private val segments: ConcurrentNavigableMap[java.lang.Long, LogSegment] = new ConcurrentSkipListMap[java.lang.Long, LogSegment]
   loadSegments()
 
@@ -208,8 +208,8 @@ class Log(val dir: File,
       }
     }
 
-    // Finally, complete any interrupted swap operations. To be crash-safe,
-    // log files that are replaced by the swap segment should be renamed to .deleted
+    // Finally, complete any interrupted swap operations. To be crash-safe,最后，完成所有中断的交换操作。为确保崩溃安全，
+    // log files that are replaced by the swap segment should be renamed to .deleted 在将交换文件还原为新段文件之前，应将替换为交换段的日志文件重命名为.deleted。
     // before the swap file is restored as the new segment file.
     for (swapFile <- swapFiles) {
       val logFile = new File(CoreUtils.replaceSuffix(swapFile.getPath, SwapFileSuffix, ""))
@@ -230,7 +230,7 @@ class Log(val dir: File,
     }
 
     if(logSegments.size == 0) {
-      // no existing segments, create a new mutable segment beginning at offset 0
+      // no existing segments, create a new mutable segment beginning at offset 0 没有现有日志段，请从偏移量0开始创建新的可变日志段
       segments.put(0L, new LogSegment(dir = dir,
                                      startOffset = 0,
                                      indexIntervalBytes = config.indexInterval,
@@ -242,7 +242,7 @@ class Log(val dir: File,
                                      preallocate = config.preallocate))
     } else {
       recoverLog()
-      // reset the index size of the currently active log segment to allow more entries
+      // reset the index size of the currently active log segment to allow more entries 重置当前活动日志段的索引大小以允许更多条目
       activeSegment.index.resize(config.maxIndexSize)
     }
 
@@ -257,13 +257,13 @@ class Log(val dir: File,
   }
 
   private def recoverLog() {
-    // if we have the clean shutdown marker, skip recovery
+    // if we have the clean shutdown marker, skip recovery 如果我们有干净的关机标记，跳过恢复
     if(hasCleanShutdownFile) {
       this.recoveryPoint = activeSegment.nextOffset
       return
     }
 
-    // okay we need to actually recovery this log
+    // okay we need to actually recovery this log 我们需要恢复这个日志
     val unflushed = logSegments(this.recoveryPoint, Long.MaxValue).iterator
     while(unflushed.hasNext) {
       val curr = unflushed.next
@@ -314,8 +314,8 @@ class Log(val dir: File,
    * This method will generally be responsible for assigning offsets to the messages,
    * however if the assignOffsets=false flag is passed we will only check that the existing offsets are valid.
    * 此方法通常负责为消息分配偏移量，但是如果传递assignOffsets=false标志，我们将只检查现有偏移量是否有效
-   * @param messages The message set to append
-   * @param assignOffsets Should the log assign offsets to this message set or blindly apply what it is given
+   * @param messages The message set to append 追加的消息集
+   * @param assignOffsets Should the log assign offsets to this message set or blindly apply what it is given 日志应该为该消息集分配偏移量，还是盲目地应用给定的偏移量
    *
    * @throws KafkaStorageException If the append fails due to an I/O error.
    *
@@ -324,11 +324,11 @@ class Log(val dir: File,
   def append(messages: ByteBufferMessageSet, assignOffsets: Boolean = true): LogAppendInfo = {
     val appendInfo = analyzeAndValidateMessageSet(messages)
 
-    // if we have any valid messages, append them to the log
+    // if we have any valid messages, append them to the log 如果我们有任何有效的消息，请将它们附加到日志中
     if (appendInfo.shallowCount == 0)
       return appendInfo
 
-    // trim any invalid bytes or partial messages before appending it to the on-disk log
+    // trim any invalid bytes or partial messages before appending it to the on-disk log 在将任何无效字节或部分消息附加到磁盘日志之前，请先对其进行修剪
     var validMessages = trimInvalidBytes(messages, appendInfo)
 
     try {
@@ -336,7 +336,7 @@ class Log(val dir: File,
       lock synchronized {
 
         if (assignOffsets) {
-          // assign offsets to the message set
+          // assign offsets to the message set 为消息集指定偏移量
           val offset = new LongRef(nextOffsetMetadata.messageOffset)
           appendInfo.firstOffset = offset.value
           val now = time.milliseconds
@@ -489,38 +489,40 @@ class Log(val dir: File,
 
   /**
    * Read messages from the log.
+   * 从日志中读取消息
+   * @param startOffset The offset to begin reading at 开始读取的偏移量
+   * @param maxLength The maximum number of bytes to read 要读取的最大字节数
+   * @param maxOffset The offset to read up to, exclusive. (i.e. this offset NOT included in the resulting message set) 要读取的最大偏移量，独占。（即，该偏移量不包括在生成的消息集中）
    *
-   * @param startOffset The offset to begin reading at
-   * @param maxLength The maximum number of bytes to read
-   * @param maxOffset The offset to read up to, exclusive. (i.e. this offset NOT included in the resulting message set)
-   *
-   * @throws OffsetOutOfRangeException If startOffset is beyond the log end offset or before the base offset of the first segment.
-   * @return The fetch data information including fetch starting offset metadata and messages read.
+   * @throws OffsetOutOfRangeException If startOffset is beyond the log end offset or before the base offset of the first segment.如果startOffset超出日志结束偏移量或在第一段的基准偏移量之前
+   * @return The fetch data information including fetch starting offset metadata and messages read. 获取数据信息，包括获取开始偏移量元数据和读取的消息。
    */
   def read(startOffset: Long, maxLength: Int, maxOffset: Option[Long] = None): FetchDataInfo = {
     trace("Reading %d bytes from offset %d in log %s of length %d bytes".format(maxLength, startOffset, name, size))
 
-    // Because we don't use lock for reading, the synchronization is a little bit tricky.
-    // We create the local variables to avoid race conditions with updates to the log.
+    // Because we don't use lock for reading, the synchronization is a little bit tricky. 因为我们不使用锁进行读取，所以同步有点棘手。
+    // We create the local variables to avoid race conditions with updates to the log. 我们通过更新日志来创建局部变量以避免竞争条件。
     val currentNextOffsetMetadata = nextOffsetMetadata
     val next = currentNextOffsetMetadata.messageOffset
+    //如果是当前最新的Offset ，则无数据读取
     if(startOffset == next)
       return FetchDataInfo(currentNextOffsetMetadata, MessageSet.Empty)
 
     //根据offset查找文件segment
     var entry = segments.floorEntry(startOffset)
 
-    // attempt to read beyond the log end offset is an error
+    // attempt to read beyond the log end offset is an error 尝试读取超出日志结束偏移量的内容是错误的
+    //如果startOffset大于当前最大的偏移量或没有找到具体的Log Segment ，则抛异常
     if(startOffset > next || entry == null)
       throw new OffsetOutOfRangeException("Request for offset %d but we only have log segments in the range %d to %d.".format(startOffset, segments.firstKey, next))
 
-    // Do the read on the segment with a base offset less than the target offset
-    // but if that segment doesn't contain any messages with an offset greater than that
-    // continue to read from successive segments until we get some messages or we reach the end of the log
+    // Do the read on the segment with a base offset less than the target offset 对基本偏移量小于目标偏移量的段执行读取，
+    // but if that segment doesn't contain any messages with an offset greater than that 但如果该段不包含偏移量大于目标偏移量的任何消息，
+    // continue to read from successive segments until we get some messages or we reach the end of the log 则继续从连续段读取，直到我们获得一些消息或到达日志末尾
     while(entry != null) {
-      // If the fetch occurs on the active segment, there might be a race condition where two fetch requests occur after
-      // the message is appended but before the nextOffsetMetadata is updated. In that case the second fetch may
-      // cause OffsetOutOfRangeException. To solve that, we cap the reading up to exposed position instead of the log
+      // If the fetch occurs on the active segment, there might be a race condition where two fetch requests occur after 如果提取发生在活动段上，则可能存在一种竞争条件，即在追加消息之后但更新nextOffsetMetadata之前发生两个提取请求。
+      // the message is appended but before the nextOffsetMetadata is updated. In that case the second fetch may 在这种情况下，第二次提取可能会导致OffsetAutoFrangeException。
+      // cause OffsetOutOfRangeException. To solve that, we cap the reading up to exposed position instead of the log 为了解决这个问题，我们将读取限制为暴露位置，而不是活动段的日志端。
       // end of the active segment.
       val maxPosition = {
         if (entry == segments.lastEntry) {

@@ -389,20 +389,21 @@ class ByteBufferMessageSet(val buffer: ByteBuffer) extends MessageSet with Loggi
   }
 
   /**
-   * Update the offsets for this message set and do further validation on messages including:
-   * 1. Messages for compacted topics must have keys
+   * Update the offsets for this message set and do further validation on messages including: 更新此消息集的偏移量，并对消息进行进一步验证，包括：
+   * 1. Messages for compacted topics must have keys 压缩主题的消息必须具有键
    * 2. When magic value = 1, inner messages of a compressed message set must have monotonically increasing offsets
-   *    starting from 0.
-   * 3. When magic value = 1, validate and maybe overwrite timestamps of messages.
+   *    starting from 0. 当magic value=1时，压缩消息集的内部消息必须具有从0开始的单调递增的偏移量
+   * 3. When magic value = 1, validate and maybe overwrite timestamps of messages. 当magic value=1时，验证并可能覆盖消息的时间戳
    *
-   * This method will convert the messages in the following scenarios:
-   * A. Magic value of a message = 0 and messageFormatVersion is 1
-   * B. Magic value of a message = 1 and messageFormatVersion is 0
+   * This method will convert the messages in the following scenarios: 此方法将在以下场景中转换消息：
+   * A. Magic value of a message = 0 and messageFormatVersion is 1 A.消息的魔法值=0，messageFormatVersion为1
+   * B. Magic value of a message = 1 and messageFormatVersion is 0 B.消息的魔法值=1，messageFormatVersion为0
    *
    * If no format conversion or value overwriting is required for messages, this method will perform in-place
-   * operations and avoid re-compression.
+   * operations and avoid re-compression. 如果消息不需要格式转换或值覆盖，此方法将执行就地操作并避免重新压缩。
    *
    * Returns the message set and a boolean indicating whether the message sizes may have changed.
+   * 返回消息集和指示消息大小是否已更改的布尔值。
    */
   private[kafka] def validateMessagesAndAssignOffsets(offsetCounter: LongRef,
                                                       now: Long,
@@ -413,23 +414,23 @@ class ByteBufferMessageSet(val buffer: ByteBuffer) extends MessageSet with Loggi
                                                       messageTimestampType: TimestampType,
                                                       messageTimestampDiffMaxMs: Long): (ByteBufferMessageSet, Boolean) = {
     if (sourceCodec == NoCompressionCodec && targetCodec == NoCompressionCodec) {
-      // check the magic value
+      // check the magic value 检查魔数
       if (!isMagicValueInAllWrapperMessages(messageFormatVersion)) {
-        // Message format conversion
+        // Message format conversion 消息格式转换
         (convertNonCompressedMessages(offsetCounter, compactedTopic, now, messageTimestampType, messageTimestampDiffMaxMs,
           messageFormatVersion), true)
       } else {
-        // Do in-place validation, offset assignment and maybe set timestamp
+        // Do in-place validation, offset assignment and maybe set timestamp 执行就地验证、偏移量分配，并可能设置时间戳
         (validateNonCompressedMessagesAndAssignOffsetInPlace(offsetCounter, now, compactedTopic, messageTimestampType,
           messageTimestampDiffMaxMs), false)
       }
     } else {
-      // Deal with compressed messages
-      // We cannot do in place assignment in one of the following situations:
-      // 1. Source and target compression codec are different
-      // 2. When magic value to use is 0 because offsets need to be overwritten
-      // 3. When magic value to use is above 0, but some fields of inner messages need to be overwritten.
-      // 4. Message format conversion is needed.
+      // Deal with compressed messages 处理压缩消息
+      // We cannot do in place assignment in one of the following situations: 在下列情况下，我们无法执行就地分配：
+      // 1. Source and target compression codec are different 源和目标压缩编解码器是不同的
+      // 2. When magic value to use is 0 because offsets need to be overwritten 因为需要覆盖偏移，所以要使用的魔法值为0时
+      // 3. When magic value to use is above 0, but some fields of inner messages need to be overwritten. 当要使用的魔法值大于0时，但需要覆盖内部消息的某些字段。
+      // 4. Message format conversion is needed. 需要进行消息格式转换。
 
       // No in place assignment situation 1 and 2
       var inPlaceAssignment = sourceCodec == targetCodec && messageFormatVersion > Message.MagicValue_V0

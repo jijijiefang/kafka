@@ -376,6 +376,14 @@ class GroupCoordinator(val brokerId: Int,
     }
   }
 
+  /**
+   * 处理提交偏移量
+   * @param groupId
+   * @param memberId
+   * @param generationId
+   * @param offsetMetadata
+   * @param responseCallback
+   */
   def handleCommitOffsets(groupId: String,
                           memberId: String,
                           generationId: Int,
@@ -393,7 +401,7 @@ class GroupCoordinator(val brokerId: Int,
       val group = groupManager.getGroup(groupId)
       if (group == null) {
         if (generationId < 0)
-          // the group is not relying on Kafka for partition management, so allow the commit
+          // the group is not relying on Kafka for partition management, so allow the commit 组不依赖Kafka进行分区管理，因此允许提交
           delayedOffsetStore = Some(groupManager.prepareStoreOffsets(groupId, memberId, generationId, offsetMetadata,
             responseCallback))
         else
@@ -420,7 +428,7 @@ class GroupCoordinator(val brokerId: Int,
       }
     }
 
-    // store the offsets without holding the group lock
+    // store the offsets without holding the group lock 在不保持组锁定的情况下存储偏移
     delayedOffsetStore.foreach(groupManager.store)
   }
 

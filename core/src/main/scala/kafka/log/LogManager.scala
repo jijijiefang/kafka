@@ -54,9 +54,11 @@ class LogManager(val logDirs: Array[File],
   val LockFile = ".lock"
   val InitialTaskDelayMs = 30*1000
   private val logCreationOrDeletionLock = new Object
+  //日志集合，每个主题分区对应一个Log
   private val logs = new Pool[TopicAndPartition, Log]()
-
+  //创建并检查给定目录的有效性
   createAndValidateLogDirs(logDirs)
+  //锁定所有给定的目录
   private val dirLocks = lockLogDirs(logDirs)
   private val recoveryPointCheckpoints = logDirs.map(dir => (dir, new OffsetCheckpoint(new File(dir, RecoveryPointCheckpointFile)))).toMap
   loadLogs()
@@ -69,11 +71,11 @@ class LogManager(val logDirs: Array[File],
       null
   
   /**
-   * Create and check validity of the given directories, specifically:
+   * Create and check validity of the given directories, specifically:创建并检查给定目录的有效性，特别是：
    * <ol>
-   * <li> Ensure that there are no duplicates in the directory list
-   * <li> Create each directory if it doesn't exist
-   * <li> Check that each path is a readable directory 
+   * <li> Ensure that there are no duplicates in the directory list 确保目录列表中没有重复项
+   * <li> Create each directory if it doesn't exist 如果每个目录不存在，请创建它
+   * <li> Check that each path is a readable directory 检查每个路径是否为可读目录
    * </ol>
    */
   private def createAndValidateLogDirs(dirs: Seq[File]) {
@@ -93,6 +95,7 @@ class LogManager(val logDirs: Array[File],
   
   /**
    * Lock all the given directories
+   * 锁定所有给定的目录
    */
   private def lockLogDirs(dirs: Seq[File]): Seq[FileLock] = {
     dirs.map { dir =>
@@ -106,6 +109,7 @@ class LogManager(val logDirs: Array[File],
   
   /**
    * Recover and load all logs in the given data directories
+   * 恢复并加载给定数据目录中的所有日志
    */
   private def loadLogs(): Unit = {
     info("Loading logs.")

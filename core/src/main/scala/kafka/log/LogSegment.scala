@@ -36,9 +36,9 @@ import java.io.{IOException, File}
  * A segment with a base offset of [base_offset] would be stored in two files, a [base_offset].index and a [base_offset].log file.
  *
  * @param log The message set containing log entries 包含日志项的消息集
- * @param index The offset index 偏移索引
- * @param baseOffset A lower bound on the offsets in this segment 此段中偏移量的下限
- * @param indexIntervalBytes The approximate number of bytes between entries in the index 索引中条目之间的大致字节数
+ * @param index The offset index 偏移索引文件
+ * @param baseOffset A lower bound on the offsets in this segment 此段起始偏移量
+ * @param indexIntervalBytes The approximate number of bytes between entries in the index 代表的是索引的粒度，即写入多少字节之后生成一条索引
  * @param time The time instance 时间实例
  */
 @nonthreadsafe
@@ -51,7 +51,7 @@ class LogSegment(val log: FileMessageSet,
 
   var created = time.milliseconds
 
-  /* the number of bytes since we last added an entry in the offset index */
+  /* the number of bytes since we last added an entry in the offset index 自上次在偏移量索引中添加项以来的字节数*/
   private var bytesSinceLastIndexEntry = 0
 
   def this(dir: File, startOffset: Long, indexIntervalBytes: Int, maxIndexSize: Int, rollJitterMs: Long, time: Time, fileAlreadyExists: Boolean = false, initFileSize: Int = 0, preallocate: Boolean = false) =
@@ -62,16 +62,16 @@ class LogSegment(val log: FileMessageSet,
          rollJitterMs,
          time)
 
-  /* Return the size in bytes of this log segment */
+  /* Return the size in bytes of this log segment 返回此日志段的大小（以字节为单位）*/
   def size: Long = log.sizeInBytes()
 
   /**
    * Append the given messages starting with the given offset. Add
    * an entry to the index if needed.
-   *
+   * 附加以给定偏移量开头的给定消息。如果需要，在索引中添加一个条目。
    * It is assumed this method is being called from within a lock.
-   *
-   * @param offset The first offset in the message set.
+   * 假定此方法是从锁中调用的。
+   * @param offset The first offset in the message set. 偏移量–消息集中的第一个偏移量
    * @param messages The messages to append.
    */
   @nonthreadsafe
@@ -92,49 +92,53 @@ class LogSegment(val log: FileMessageSet,
 
   /**
    * Find the physical file position for the first message with offset >= the requested offset.
-   *
+   * 查找偏移量>=请求偏移量的第一条消息的物理文件位置。
    * The lowerBound argument is an optimization that can be used if we already know a valid starting position
-   * in the file higher than the greatest-lower-bound from the index.
+   * in the file higher than the greatest-lower-bound from the index. lowerBound参数是一种优化，如果我们已经知道文件中的有效起始位置高于索引的最大下限，则可以使用它
    *
-   * @param offset The offset we want to translate
+   * @param offset The offset we want to translate 我们要转换的偏移量
    * @param startingFilePosition A lower bound on the file position from which to begin the search. This is purely an optimization and
-   * when omitted, the search will begin at the position in the offset index.
+   * when omitted, the search will begin at the position in the offset index. 开始搜索的文件位置的下限。这纯粹是一种优化，如果省略，搜索将从偏移索引中的位置开始
    *
-   * @return The position in the log storing the message with the least offset >= the requested offset or null if no message meets this criteria.
+   * @return The position in the log storing the message with the least offset >= the requested offset or null if no message meets this criteria. 日志中存储最小偏移量>=请求偏移量的消息的位置，如果没有消息满足此条件，则为null。
    */
   @threadsafe
   private[log] def translateOffset(offset: Long, startingFilePosition: Int = 0): OffsetPosition = {
+    //通过index 索引信息定位到小于等于startOffset 的最近记录位置， 利用的是二分查找算法
     val mapping = index.lookup(offset)
+    //从小于等于startOffset的最近记录位置开始往后读取数据，直到读取到偏移量为startOffset的消息
     log.searchFor(offset, max(mapping.position, startingFilePosition))
   }
 
   /**
    * Read a message set from this segment beginning with the first offset >= startOffset. The message set will include
    * no more than maxSize bytes and will end before maxOffset if a maxOffset is specified.
+   * 从第一个偏移量>=startOffset开始读取此段的消息集。如果指定了maxOffset，则消息集将包含不超过maxSize字节，并将在maxOffset之前结束。
+   * @param startOffset A lower bound on the first offset to include in the message set we read 包含在我们读取的消息集中的第一个偏移量的下限
+   * @param maxSize The maximum number of bytes to include in the message set we read 我们读取的消息集中包含的最大字节数
+   * @param maxOffset An optional maximum offset for the message set we read 我们读取的消息集的可选最大偏移量
+   * @param maxPosition The maximum position in the log segment that should be exposed for read 我们读取的消息集的可选最大偏移量
    *
-   * @param startOffset A lower bound on the first offset to include in the message set we read
-   * @param maxSize The maximum number of bytes to include in the message set we read
-   * @param maxOffset An optional maximum offset for the message set we read
-   * @param maxPosition The maximum position in the log segment that should be exposed for read
-   *
-   * @return The fetched data and the offset metadata of the first message whose offset is >= startOffset,
-   *         or null if the startOffset is larger than the largest offset in this log
+   * @return The fetched data and the offset metadata of the first message whose offset is >= startOffset, 获取的数据和偏移量为>=startOffset的第一条消息的偏移量元数据，
+   *         or null if the startOffset is larger than the largest offset in this log 如果startOffset大于此日志中的最大偏移量，则为null
    */
   @threadsafe
   def read(startOffset: Long, maxOffset: Option[Long], maxSize: Int, maxPosition: Long = size): FetchDataInfo = {
     if(maxSize < 0)
       throw new IllegalArgumentException("Invalid max size for log read (%d)".format(maxSize))
 
-    val logSize = log.sizeInBytes // this may change, need to save a consistent copy
+    val logSize = log.sizeInBytes // this may change, need to save a consistent copy 这可能会更改，需要保存一致的副本
+    //通过startOffset 找到位于log 中具体的物理位置，以字节为单位
     val startPosition = translateOffset(startOffset)
 
-    // if the start position is already off the end of the log, return null
+    // if the start position is already off the end of the log, return null 如果起始位置已离开日志的末尾，则返回null
     if(startPosition == null)
       return null
-
+    //组装offset 元数据信息
     val offsetMetadata = new LogOffsetMetadata(startOffset, this.baseOffset, startPosition.position)
 
     // if the size is zero, still return a log segment but with zero size
+    //如果设置了maxOffset ，则根据其具体值计算实际需要读取的字节数
     if(maxSize == 0)
       return FetchDataInfo(offsetMetadata, MessageSet.Empty)
 
@@ -144,21 +148,21 @@ class LogSegment(val log: FileMessageSet,
         // no max offset, just read until the max position
         min((maxPosition - startPosition.position).toInt, maxSize)
       case Some(offset) =>
-        // there is a max offset, translate it to a file position and use that to calculate the max read size;
-        // when the leader of a partition changes, it's possible for the new leader's high watermark to be less than the
-        // true high watermark in the previous leader for a short window. In this window, if a consumer fetches on an
+        // there is a max offset, translate it to a file position and use that to calculate the max read size;存在最大偏移量，将其转换为文件位置，并使用该位置计算最大读取大小；
+        // when the leader of a partition changes, it's possible for the new leader's high watermark to be less than the 当分区的Leader更改时，新Leader的高水位线可能在短窗口内小于前一引线中的真实高水位线。
+        // true high watermark in the previous leader for a short window. In this window, if a consumer fetches on an 在此窗口中，如果消费者获取新领导者的高水位线和日志结束偏移之间的偏移量，我们希望返回空响应。
         // offset between new leader's high watermark and the log end offset, we want to return an empty response.
         if(offset < startOffset)
           return FetchDataInfo(offsetMetadata, MessageSet.Empty)
         val mapping = translateOffset(offset, startPosition.position)
         val endPosition =
           if(mapping == null)
-            logSize // the max offset is off the end of the log, use the end of the file
+            logSize // the max offset is off the end of the log, use the end of the file 最大偏移量超出日志的末尾，请使用文件的结尾
           else
             mapping.position
         min(min(maxPosition, endPosition) - startPosition.position, maxSize).toInt
     }
-
+    //通过FileMessageSet 提供的指定物理偏移量和长度的read 方法读取相应的数据
     FetchDataInfo(offsetMetadata, log.read(startPosition.position, length))
   }
 

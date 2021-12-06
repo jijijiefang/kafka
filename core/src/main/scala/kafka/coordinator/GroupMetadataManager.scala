@@ -228,7 +228,7 @@ class GroupMetadataManager(val brokerId: Int,
   }
 
   def store(delayedAppend: DelayedStore) {
-    // call replica manager to append the group message
+    // call replica manager to append the group message 调用副本管理器以附加组消息
     replicaManager.appendMessages(
       config.offsetCommitTimeoutMs.toLong,
       config.offsetCommitRequiredAcks,
@@ -239,6 +239,7 @@ class GroupMetadataManager(val brokerId: Int,
 
   /**
    * Store offsets by appending it to the replicated log and then inserting to cache
+   * 通过将偏移量附加到已复制日志，然后插入缓存来存储偏移量
    */
   def prepareStoreOffsets(groupId: String,
                           consumerId: String,
@@ -250,7 +251,7 @@ class GroupMetadataManager(val brokerId: Int,
       validateOffsetMetadataLength(offsetAndMetadata.metadata)
     }
 
-    // construct the message set to append
+    // construct the message set to append 构造要追加的消息集
     val messages = filteredOffsetMetadata.map { case (topicAndPartition, offsetAndMetadata) =>
       val (magicValue, timestamp) = getMessageFormatVersionAndTimestamp(partitionFor(groupId))
       new Message(
