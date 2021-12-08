@@ -104,7 +104,7 @@ class LogSegment(val log: FileMessageSet,
    */
   @threadsafe
   private[log] def translateOffset(offset: Long, startingFilePosition: Int = 0): OffsetPosition = {
-    //通过index 索引信息定位到小于等于startOffset 的最近记录位置， 利用的是二分查找算法
+    //通过index索引信息定位到小于等于startOffset 的最近记录位置， 利用的是二分查找算法
     val mapping = index.lookup(offset)
     //从小于等于startOffset的最近记录位置开始往后读取数据，直到读取到偏移量为startOffset的消息
     log.searchFor(offset, max(mapping.position, startingFilePosition))
@@ -128,7 +128,7 @@ class LogSegment(val log: FileMessageSet,
       throw new IllegalArgumentException("Invalid max size for log read (%d)".format(maxSize))
 
     val logSize = log.sizeInBytes // this may change, need to save a consistent copy 这可能会更改，需要保存一致的副本
-    //通过startOffset 找到位于log 中具体的物理位置，以字节为单位
+    //通过startOffset找到位于log中具体的物理位置，以字节为单位
     val startPosition = translateOffset(startOffset)
 
     // if the start position is already off the end of the log, return null 如果起始位置已离开日志的末尾，则返回null
@@ -137,15 +137,15 @@ class LogSegment(val log: FileMessageSet,
     //组装offset 元数据信息
     val offsetMetadata = new LogOffsetMetadata(startOffset, this.baseOffset, startPosition.position)
 
-    // if the size is zero, still return a log segment but with zero size
+    // if the size is zero, still return a log segment but with zero size 如果大小为零，仍然返回一个大小为零的日志段
     //如果设置了maxOffset ，则根据其具体值计算实际需要读取的字节数
     if(maxSize == 0)
       return FetchDataInfo(offsetMetadata, MessageSet.Empty)
 
-    // calculate the length of the message set to read based on whether or not they gave us a maxOffset
+    // calculate the length of the message set to read based on whether or not they gave us a maxOffset 根据是否给了我们maxOffset，计算要读取的消息集的长度
     val length = maxOffset match {
       case None =>
-        // no max offset, just read until the max position
+        // no max offset, just read until the max position 无最大偏移量，仅读取至最大位置
         min((maxPosition - startPosition.position).toInt, maxSize)
       case Some(offset) =>
         // there is a max offset, translate it to a file position and use that to calculate the max read size;存在最大偏移量，将其转换为文件位置，并使用该位置计算最大读取大小；
@@ -162,7 +162,7 @@ class LogSegment(val log: FileMessageSet,
             mapping.position
         min(min(maxPosition, endPosition) - startPosition.position, maxSize).toInt
     }
-    //通过FileMessageSet 提供的指定物理偏移量和长度的read 方法读取相应的数据
+    //通过FileMessageSet提供的指定物理偏移量和长度的read方法读取相应的数据
     FetchDataInfo(offsetMetadata, log.read(startPosition.position, length))
   }
 

@@ -508,7 +508,7 @@ class Log(val dir: File,
     if(startOffset == next)
       return FetchDataInfo(currentNextOffsetMetadata, MessageSet.Empty)
 
-    //根据offset查找文件segment
+    //根据offset查找文件segment，基于跳表的数据的结构
     var entry = segments.floorEntry(startOffset)
 
     // attempt to read beyond the log end offset is an error 尝试读取超出日志结束偏移量的内容是错误的
@@ -527,9 +527,9 @@ class Log(val dir: File,
       val maxPosition = {
         if (entry == segments.lastEntry) {
           val exposedPos = nextOffsetMetadata.relativePositionInSegment.toLong
-          // Check the segment again in case a new segment has just rolled out.
+          // Check the segment again in case a new segment has just rolled out. 再次检查该段，以防新段刚刚推出
           if (entry != segments.lastEntry)
-            // New log segment has rolled out, we can read up to the file end.
+            // New log segment has rolled out, we can read up to the file end. 新的日志段已经推出，我们可以读取到文件末尾
             entry.getValue.size
           else
             exposedPos
@@ -545,9 +545,9 @@ class Log(val dir: File,
       }
     }
 
-    // okay we are beyond the end of the last segment with no data fetched although the start offset is in range,
-    // this can happen when all messages with offset larger than start offsets have been deleted.
-    // In this case, we will return the empty set with log end offset metadata
+    // okay we are beyond the end of the last segment with no data fetched although the start offset is in range,好的，我们已经超出了最后一段的末尾，没有获取数据。
+    // this can happen when all messages with offset larger than start offsets have been deleted. 尽管起始偏移量在范围内，但当所有偏移量大于起始偏移量的消息都被删除时，可能会发生这种情况。
+    // In this case, we will return the empty set with log end offset metadata 在这种情况下，我们将返回带有日志结束偏移量元数据的空集
     FetchDataInfo(nextOffsetMetadata, MessageSet.Empty)
   }
 
@@ -966,6 +966,7 @@ object Log {
 
   /**
    * Parse the topic and partition out of the directory name of a log
+   * 从日志的目录名中解析主题和分区
    */
   def parseTopicPartitionName(dir: File): TopicAndPartition = {
     val name: String = dir.getName

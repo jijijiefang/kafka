@@ -33,6 +33,7 @@ object OffsetCheckpoint {
 
 /**
  * This class saves out a map of topic/partition=>offsets to a file
+ * 此类将topic/partition=>偏移量的映射保存到文件
  */
 class OffsetCheckpoint(val file: File) extends Logging {
   import OffsetCheckpoint._

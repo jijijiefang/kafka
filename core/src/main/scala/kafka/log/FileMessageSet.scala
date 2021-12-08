@@ -122,10 +122,10 @@ class FileMessageSet private[kafka](@volatile var file: File,
   }
 
   /**
-   * Search forward for the file position of the last offset that is greater than or equal to the target offset
-   * and return its physical position. If no such offsets are found, return null.
-   * @param targetOffset The offset to search for.
-   * @param startingPosition The starting position in the file to begin searching from.
+   * Search forward for the file position of the last offset that is greater than or equal to the target offset 向前搜索大于或等于目标偏移的最后偏移的文件位置，
+   * and return its physical position. If no such offsets are found, return null. 并返回其物理位置。如果未找到此类偏移，则返回null
+   * @param targetOffset The offset to search for. 要搜索的偏移量
+   * @param startingPosition The starting position in the file to begin searching from. 文件中开始搜索的起始位置
    */
   def searchFor(targetOffset: Long, startingPosition: Int): OffsetPosition = {
     var position = startingPosition
@@ -133,15 +133,17 @@ class FileMessageSet private[kafka](@volatile var file: File,
     val size = sizeInBytes()
     while(position + MessageSet.LogOverhead < size) {
       buffer.rewind()
+      //读取position位置的消息的偏移量和长度
       channel.read(buffer, position)
       if(buffer.hasRemaining)
         throw new IllegalStateException("Failed to read complete buffer for targetOffset %d startPosition %d in %s"
                                         .format(targetOffset, startingPosition, file.getAbsolutePath))
       buffer.rewind()
       val offset = buffer.getLong()
+      //找到要搜索的偏移量
       if(offset >= targetOffset)
         return OffsetPosition(offset, position)
-      val messageSize = buffer.getInt()
+      val messageSize = buffer.getInt()//获取消息的长度,计算下一条消息的起始位置
       if(messageSize < Message.MinMessageOverhead)
         throw new IllegalStateException("Invalid message size: " + messageSize)
       position += MessageSet.LogOverhead + messageSize

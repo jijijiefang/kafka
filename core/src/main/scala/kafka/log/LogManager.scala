@@ -60,6 +60,7 @@ class LogManager(val logDirs: Array[File],
   createAndValidateLogDirs(logDirs)
   //锁定所有给定的目录
   private val dirLocks = lockLogDirs(logDirs)
+  //恢复点检查点集合
   private val recoveryPointCheckpoints = logDirs.map(dir => (dir, new OffsetCheckpoint(new File(dir, RecoveryPointCheckpointFile)))).toMap
   loadLogs()
 
@@ -122,19 +123,20 @@ class LogManager(val logDirs: Array[File],
       threadPools.append(pool)
 
       val cleanShutdownFile = new File(dir, Log.CleanShutdownFile)
-
+      //cleanShutdownFile文件是否存在
       if (cleanShutdownFile.exists) {
         debug(
           "Found clean shutdown file. " +
           "Skipping recovery for all logs in data directory: " +
           dir.getAbsolutePath)
       } else {
-        // log recovery itself is being performed by `Log` class during initialization
+        // log recovery itself is being performed by `Log` class during initialization 日志恢复本身在初始化期间由`log`类执行
         brokerState.newState(RecoveringFromUncleanShutdown)
       }
 
       var recoveryPoints = Map[TopicAndPartition, Long]()
       try {
+        //恢复点检查点
         recoveryPoints = this.recoveryPointCheckpoints(dir).read
       } catch {
         case e: Exception => {
@@ -145,16 +147,20 @@ class LogManager(val logDirs: Array[File],
 
       val jobsForDir = for {
         dirContent <- Option(dir.listFiles).toList
+        //文件目录
         logDir <- dirContent if logDir.isDirectory
       } yield {
         CoreUtils.runnable {
           debug("Loading log '" + logDir.getName + "'")
-
+          //从文件目标名称解析主题和分区
           val topicPartition = Log.parseTopicPartitionName(logDir)
+          //主题配置
           val config = topicConfigs.getOrElse(topicPartition.topic, defaultConfig)
+          //日志恢复点
           val logRecoveryPoint = recoveryPoints.getOrElse(topicPartition, 0L)
-
+          //构建日志对象
           val current = new Log(logDir, config, logRecoveryPoint, scheduler, time)
+          //放入logs集合，返回之前的日志对象
           val previous = this.logs.put(topicPartition, current)
 
           if (previous != null) {
@@ -337,6 +343,7 @@ class LogManager(val logDirs: Array[File],
 
   /**
    * Make a checkpoint for all logs in provided directory.
+   * 为提供的目录中的所有日志创建一个检查点
    */
   private def checkpointLogsInDir(dir: File): Unit = {
     val recoveryPoints = this.logsByDir.get(dir.toString)
@@ -432,19 +439,23 @@ class LogManager(val logDirs: Array[File],
 
   /**
    * Runs through the log removing segments older than a certain age
+   * 在日志中运行，删除超过某个时间段的段
    */
   private def cleanupExpiredSegments(log: Log): Int = {
     if (log.config.retentionMs < 0)
       return 0
     val startMs = time.milliseconds
+    //删除超过7天的日志文件
     log.deleteOldSegments(startMs - _.lastModified > log.config.retentionMs)
   }
 
   /**
    *  Runs through the log removing segments until the size of the log
    *  is at least logRetentionSize bytes in size
+   *  运行日志删除段，直到日志大小至少为logRetentionSize字节
    */
   private def cleanupSegmentsToMaintainSize(log: Log): Int = {
+    //默认为-1
     if(log.config.retentionSize < 0 || log.size < log.config.retentionSize)
       return 0
     var diff = log.size - log.config.retentionSize
@@ -506,6 +517,7 @@ class LogManager(val logDirs: Array[File],
         val timeSinceLastFlush = time.milliseconds - log.lastFlushTime
         debug("Checking if flush is needed on " + topicAndPartition.topic + " flush interval  " + log.config.flushMs +
               " last flushed " + log.lastFlushTime + " time since last flush: " + timeSinceLastFlush)
+        //默认为Long.MaxValue
         if(timeSinceLastFlush >= log.config.flushMs)
           log.flush
       } catch {

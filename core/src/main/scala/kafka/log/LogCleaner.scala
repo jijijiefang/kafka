@@ -68,10 +68,10 @@ class LogCleaner(val config: CleanerConfig,
                  val logs: Pool[TopicAndPartition, Log], 
                  time: Time = SystemTime) extends Logging with KafkaMetricsGroup {
   
-  /* for managing the state of partitions being cleaned. package-private to allow access in tests */
+  /* for managing the state of partitions being cleaned. package-private to allow access in tests 用于管理正在清理的分区的状态。包私有以允许在测试中访问*/
   private[log] val cleanerManager = new LogCleanerManager(logDirs, logs)
 
-  /* a throttle used to limit the I/O of all the cleaner threads to a user-specified maximum rate */
+  /* a throttle used to limit the I/O of all the cleaner threads to a user-specified maximum rate 用于将所有清洁线程的IO限制为用户指定的最大速率的节流阀*/
   private val throttler = new Throttler(desiredRatePerSec = config.maxIoBytesPerSecond, 
                                         checkIntervalMs = 300, 
                                         throttleDown = true, 
@@ -79,7 +79,7 @@ class LogCleaner(val config: CleanerConfig,
                                         "bytes",
                                         time = time)
   
-  /* the threads */
+  /* the threads 线程数量配置为1*/
   private val cleaners = (0 until config.numThreads).map(new CleanerThread(_))
   
   /* a metric to track the maximum utilization of any thread's buffer in the last cleaning */
@@ -180,6 +180,7 @@ class LogCleaner(val config: CleanerConfig,
   /**
    * The cleaner threads do the actual log cleaning. Each thread processes does its cleaning repeatedly by
    * choosing the dirtiest log, cleaning it, and then swapping in the cleaned segments.
+   * 洁器线程执行实际的日志清理。每个线程通过选择最脏的日志、清理日志，然后在清理后的段中交换，反复执行清理。
    */
   private class CleanerThread(threadId: Int)
     extends ShutdownableThread(name = "kafka-log-cleaner-thread-" + threadId, isInterruptible = false) {
@@ -224,11 +225,12 @@ class LogCleaner(val config: CleanerConfig,
      
     /**
      * Clean a log if there is a dirty log available, otherwise sleep for a bit
+     * 如果有脏日志可用，请清理日志，否则请休眠一段时间
      */
     private def cleanOrSleep() {
       cleanerManager.grabFilthiestLog() match {
         case None =>
-          // there are no cleanable logs, sleep a while
+          // there are no cleanable logs, sleep a while 没有可清理的日志，请睡一会儿
           backOffWaitLatch.await(config.backOffMs, TimeUnit.MILLISECONDS)
         case Some(cleanable) =>
           // there's a log, clean it

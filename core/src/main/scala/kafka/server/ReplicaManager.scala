@@ -45,6 +45,7 @@ import scala.collection.JavaConverters._
 
 /*
  * Result metadata of a log append operation on the log
+ * 日志上日志附加操作的结果元数据
  */
 case class LogAppendResult(info: LogAppendInfo, error: Option[Throwable] = None) {
   def errorCode = error match {
@@ -55,12 +56,13 @@ case class LogAppendResult(info: LogAppendInfo, error: Option[Throwable] = None)
 
 /*
  * Result metadata of a log read operation on the log
- * @param info @FetchDataInfo returned by the @Log read
- * @param hw high watermark of the local replica
- * @param readSize amount of data that was read from the log i.e. size of the fetch
- * @param isReadFromLogEnd true if the request read up to the log end offset snapshot
+ * 日志上日志读取操作的结果元数据
+ * @param info @FetchDataInfo returned by the @Log read @Log read返回的info@FetchDataInfo
+ * @param hw high watermark of the local replica 本地副本的高水位
+ * @param readSize amount of data that was read from the log i.e. size of the fetch readSize从日志中读取的数据量，即获取的大小
+ * @param isReadFromLogEnd true if the request read up to the log end offset snapshot isReadFromLogEnd true如果在启动读取时请求读取到日志结束偏移量快照，则为false，否则为false
  *                         when the read was initiated, false otherwise
- * @param error Exception if error encountered while reading from the log
+ * @param error Exception if error encountered while reading from the log 如果从日志读取时遇到错误，则出现错误异常
  */
 case class LogReadResult(info: FetchDataInfo,
                          hw: Long,
@@ -225,6 +227,9 @@ class ReplicaManager(val config: KafkaConfig,
     debug("Request key %s unblocked %d fetch requests.".format(key.keyLabel, completed))
   }
 
+  /**
+   * 启动
+   */
   def startup() {
     // start ISR expiration thread 启动ISR过期线程
     scheduler.schedule("isr-expiration", maybeShrinkIsr, period = config.replicaLagTimeMaxMs, unit = TimeUnit.MILLISECONDS)
@@ -232,6 +237,13 @@ class ReplicaManager(val config: KafkaConfig,
     scheduler.schedule("isr-change-propagation", maybePropagateIsrChanges, period = 2500L, unit = TimeUnit.MILLISECONDS)
   }
 
+  /**
+   * 停止
+   * @param topic
+   * @param partitionId
+   * @param deletePartition
+   * @return
+   */
   def stopReplica(topic: String, partitionId: Int, deletePartition: Boolean): Short  = {
     stateChangeLogger.trace("Broker %d handling stop replica (delete=%s) for partition [%s,%d]".format(localBrokerId,
       deletePartition.toString, topic, partitionId))
@@ -538,13 +550,13 @@ class ReplicaManager(val config: KafkaConfig,
         try {
           trace("Fetching log segment for topic %s, partition %d, offset %d, size %d".format(topic, partition, offset, fetchSize))
 
-          // decide whether to only fetch from leader
+          // decide whether to only fetch from leader 决定是否仅从领导处获取
           val localReplica = if (fetchOnlyFromLeader)
             getLeaderReplicaIfLocal(topic, partition)
           else
             getReplicaOrException(topic, partition)
 
-          // decide whether to only fetch committed data (i.e. messages below high watermark)
+          // decide whether to only fetch committed data (i.e. messages below high watermark) 决定是否仅获取提交的数据（即低于高水位线的消息）
           val maxOffsetOpt = if (readOnlyCommitted)
             Some(localReplica.highWatermark.messageOffset)
           else
@@ -610,6 +622,14 @@ class ReplicaManager(val config: KafkaConfig,
     }
   }
 
+  /**
+   * 成为Leader或Follower
+   * @param correlationId
+   * @param leaderAndISRRequest
+   * @param metadataCache
+   * @param onLeadershipChange
+   * @return
+   */
   def becomeLeaderOrFollower(correlationId: Int,leaderAndISRRequest: LeaderAndIsrRequest,
                              metadataCache: MetadataCache,
                              onLeadershipChange: (Iterable[Partition], Iterable[Partition]) => Unit): BecomeLeaderOrFollowerResult = {
@@ -688,15 +708,15 @@ class ReplicaManager(val config: KafkaConfig,
 
   /*
    * Make the current broker to become leader for a given set of partitions by:
-   *
-   * 1. Stop fetchers for these partitions
-   * 2. Update the partition metadata in cache
-   * 3. Add these partitions to the leader partitions set
+   * 通过以下方式使当前代理成为给定分区集的领导者：
+   * 1. Stop fetchers for these partitions 停止这些分区的抓取程序
+   * 2. Update the partition metadata in cache 更新缓存中的分区元数据
+   * 3. Add these partitions to the leader partitions set 将这些分区添加到Leader分区集中
    *
    * If an unexpected error is thrown in this function, it will be propagated to KafkaApis where
    * the error message will be set on each partition since we do not know which partition caused it. Otherwise,
    * return the set of partitions that are made leader due to this method
-   *
+   * 如果此函数中抛出意外错误，它将传播到KafkaApis，在那里，错误消息将在每个分区上设置，因为我们不知道是哪个分区导致了错误。否则，返回由于此方法而成为前导的分区集
    *  TODO: the above may need to be fixed later
    */
   private def makeLeaders(controllerId: Int,
@@ -754,21 +774,22 @@ class ReplicaManager(val config: KafkaConfig,
 
   /*
    * Make the current broker to become follower for a given set of partitions by:
-   *
-   * 1. Remove these partitions from the leader partitions set.
-   * 2. Mark the replicas as followers so that no more data can be added from the producer clients.
-   * 3. Stop fetchers for these partitions so that no more data can be added by the replica fetcher threads.
-   * 4. Truncate the log and checkpoint offsets for these partitions.
-   * 5. Clear the produce and fetch requests in the purgatory
-   * 6. If the broker is not shutting down, add the fetcher to the new leaders.
+   * 通过以下方法使当前代理成为给定分区集的跟随者：
+   * 1. Remove these partitions from the leader partitions set. 从Leader分区集中删除这些分区
+   * 2. Mark the replicas as followers so that no more data can be added from the producer clients. 将复制副本标记为跟随者，以便无法从生产者客户端添加更多数据
+   * 3. Stop fetchers for these partitions so that no more data can be added by the replica fetcher threads. 停止这些分区的提取程序，以便副本提取程序线程不能添加更多数据
+   * 4. Truncate the log and checkpoint offsets for these partitions. 截断这些分区的日志和检查点偏移
+   * 5. Clear the produce and fetch requests in the purgatory 清除炼狱中的product和fetch请求
+   * 6. If the broker is not shutting down, add the fetcher to the new leaders. 如果代理未关闭，请将抓取程序添加到新的领导者
    *
    * The ordering of doing these steps make sure that the replicas in transition will not
    * take any more messages before checkpointing offsets so that all messages before the checkpoint
    * are guaranteed to be flushed to disks
-   *
+   * 执行这些步骤的顺序确保转换中的复制副本在检查点偏移之前不会再接收任何消息，以便确保将检查点之前的所有消息刷新到磁盘
    * If an unexpected error is thrown in this function, it will be propagated to KafkaApis where
    * the error message will be set on each partition since we do not know which partition caused it. Otherwise,
    * return the set of partitions that are made follower due to this method
+   * 如果此函数中抛出意外错误，它将传播到KafkaApis，在那里，错误消息将在每个分区上设置，因为我们不知道是哪个分区导致了错误。否则，返回由于此方法而成为跟随者的分区集
    */
   private def makeFollowers(controllerId: Int,
                             epoch: Int,
@@ -906,7 +927,10 @@ class ReplicaManager(val config: KafkaConfig,
     allPartitions.values.filter(_.leaderReplicaIfLocal().isDefined).toList
   }
 
-  // Flushes the highwatermark value for all partitions to the highwatermark file
+  /**
+   * Flushes the highwatermark value for all partitions to the highwatermark file
+   * 将所有分区的highwatermark值刷新到highwatermark文件
+   */
   def checkpointHighWatermarks() {
     val replicas = allPartitions.values.flatMap(_.getReplica(config.brokerId))
     val replicasByDir = replicas.filter(_.log.isDefined).groupBy(_.log.get.dir.getParentFile.getAbsolutePath)

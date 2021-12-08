@@ -138,7 +138,7 @@ class OffsetIndex(@volatile private[this] var _file: File, val baseOffset: Long,
       val slot = indexSlotFor(idx, targetOffset)
       if(slot == -1)
         OffsetPosition(baseOffset, 0)
-      else
+      else//返回偏移量和物理地址
         OffsetPosition(baseOffset + relativeOffset(idx, slot), physical(idx, slot))
       }
   }
@@ -146,11 +146,11 @@ class OffsetIndex(@volatile private[this] var _file: File, val baseOffset: Long,
   /**
    * Find the slot in which the largest offset less than or equal to the given
    * target offset is stored.
+   * 查找存储小于或等于给定目标偏移量的最大偏移量的插槽
+   * @param idx The index buffer 索引缓冲区
+   * @param targetOffset The offset to look for 要查找的偏移量
    * 
-   * @param idx The index buffer
-   * @param targetOffset The offset to look for
-   * 
-   * @return The slot found or -1 if the least entry in the index is larger than the target offset or the index is empty
+   * @return The slot found or -1 if the least entry in the index is larger than the target offset or the index is empty 找到的插槽，如果索引中的最小项大于目标偏移量或索引为空，则为-1
    */
   private def indexSlotFor(idx: ByteBuffer, targetOffset: Long): Int = {
     // we only store the difference from the base offset so calculate that 我们只存储与基准偏移的差值，因此计算
@@ -160,30 +160,34 @@ class OffsetIndex(@volatile private[this] var _file: File, val baseOffset: Long,
     if (_entries == 0)
       return -1
     
-    // check if the target offset is smaller than the least offset
+    // check if the target offset is smaller than the least offset 检查目标偏移是否小于最小偏移
     if (relativeOffset(idx, 0) > relOffset)
       return -1
       
-    // binary search for the entry
+    // binary search for the entry 对条目进行二分搜索
     var lo = 0
     var hi = _entries - 1
     while (lo < hi) {
       val mid = ceil(hi/2.0 + lo/2.0).toInt
       val found = relativeOffset(idx, mid)
+      //找到返回
       if (found == relOffset)
         return mid
+      //start增大
       else if (found < relOffset)
         lo = mid
-      else
+      else {
+        //end缩小
         hi = mid - 1
+      }
     }
     lo
   }
   
-  /* return the nth offset relative to the base offset */
+  /* return the nth offset relative to the base offset 返回相对于基准偏移的第n个偏移*/
   private def relativeOffset(buffer: ByteBuffer, n: Int): Int = buffer.getInt(n * 8)
   
-  /* return the nth physical position */
+  /* return the nth physical position 返回物理地址*/
   private def physical(buffer: ByteBuffer, n: Int): Int = buffer.getInt(n * 8 + 4)
   
   /**
