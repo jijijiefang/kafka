@@ -37,6 +37,7 @@ import com.yammer.metrics.core.Gauge
 
 /**
  *  Abstract class for fetching data from multiple partitions from the same broker.
+ *  用于从同一代理中的多个分区获取数据的抽象类
  */
 abstract class AbstractFetcherThread(name: String,
                                      clientId: String,
@@ -44,10 +45,11 @@ abstract class AbstractFetcherThread(name: String,
                                      fetchBackOffMs: Int = 0,
                                      isInterruptible: Boolean = true)
   extends ShutdownableThread(name, isInterruptible) {
-
+  //拉取请求
   type REQ <: FetchRequest
+  //拉取的数据
   type PD <: PartitionData
-
+  //为每个主题分区设置拉取偏移量
   private val partitionMap = new mutable.HashMap[TopicAndPartition, PartitionFetchState] // a (topic, partition) -> partitionFetchState map
   private val partitionMapLock = new ReentrantLock
   private val partitionMapCond = partitionMapLock.newCondition()
@@ -84,7 +86,7 @@ abstract class AbstractFetcherThread(name: String,
   }
 
   override def doWork() {
-
+    //构建拉取请求
     val fetchRequest = inLock(partitionMapLock) {
       val fetchRequest = buildFetchRequest(partitionMap)
       if (fetchRequest.isEmpty) {
@@ -98,12 +100,17 @@ abstract class AbstractFetcherThread(name: String,
       processFetchRequest(fetchRequest)
   }
 
+  /**
+   * 处理拉取请求
+   * @param fetchRequest 拉取请求
+   */
   private def processFetchRequest(fetchRequest: REQ) {
     val partitionsWithError = new mutable.HashSet[TopicAndPartition]
     var responseData: Map[TopicAndPartition, PD] = Map.empty
 
     try {
       trace("Issuing to broker %d of fetch request %s".format(sourceBroker.id, fetchRequest))
+      //子类调用拉取请求
       responseData = fetch(fetchRequest)
     } catch {
       case t: Throwable =>
@@ -119,17 +126,18 @@ abstract class AbstractFetcherThread(name: String,
     fetcherStats.requestRate.mark()
 
     if (responseData.nonEmpty) {
-      // process fetched data
+      // process fetched data 处理拉取的数据
       inLock(partitionMapLock) {
 
         responseData.foreach { case (topicAndPartition, partitionData) =>
           val TopicAndPartition(topic, partitionId) = topicAndPartition
           partitionMap.get(topicAndPartition).foreach(currentPartitionFetchState =>
-            // we append to the log if the current offset is defined and it is the same as the offset requested during fetch
+            // we append to the log if the current offset is defined and it is the same as the offset requested during fetch 如果定义了当前偏移量，并且该偏移量与获取期间请求的偏移量相同，则将其追加到日志中
             if (fetchRequest.offset(topicAndPartition) == currentPartitionFetchState.offset) {
               Errors.forCode(partitionData.errorCode) match {
                 case Errors.NONE =>
                   try {
+                    //拉取回来的消息集
                     val messages = partitionData.toByteBufferMessageSet
                     val validBytes = messages.validBytes
                     val newOffset = messages.shallowIterator.toSeq.lastOption match {
@@ -142,18 +150,23 @@ abstract class AbstractFetcherThread(name: String,
                     // Once we hand off the partition data to the subclass, we can't mess with it any more in this thread
                     processPartitionData(topicAndPartition, currentPartitionFetchState.offset, partitionData)
                   } catch {
+                    //损坏的记录异常
                     case ime: CorruptRecordException =>
-                      // we log the error and continue. This ensures two things
+                      // we log the error and continue. This ensures two things 我们记录错误并继续。这确保了两件事
                       // 1. If there is a corrupt message in a topic partition, it does not bring the fetcher thread down and cause other topic partition to also lag
+                      //    如果主题分区中有损坏的消息，它不会使获取程序线程停止，并导致其他主题分区也延迟
                       // 2. If the message is corrupt due to a transient state in the log (truncation, partial writes can cause this), we simply continue and
                       // should get fixed in the subsequent fetches
+                      //    如果消息由于日志中的瞬态而损坏（截断、部分写入可能导致这种情况），我们只需继续，并应在后续的回迁中修复
                       logger.error("Found invalid messages during fetch for partition [" + topic + "," + partitionId + "] offset " + currentPartitionFetchState.offset  + " error " + ime.getMessage)
                     case e: Throwable =>
                       throw new KafkaException("error processing data for partition [%s,%d] offset %d"
                         .format(topic, partitionId, currentPartitionFetchState.offset), e)
                   }
+                //偏移量超出范围
                 case Errors.OFFSET_OUT_OF_RANGE =>
                   try {
+                    //处理偏移量越界
                     val newOffset = handleOffsetOutOfRange(topicAndPartition)
                     partitionMap.put(topicAndPartition, new PartitionFetchState(newOffset))
                     error("Current offset %d for partition [%s,%d] out of range; reset offset to %d"
@@ -185,7 +198,7 @@ abstract class AbstractFetcherThread(name: String,
     partitionMapLock.lockInterruptibly()
     try {
       for ((topicAndPartition, offset) <- partitionAndOffsets) {
-        // If the partitionMap already has the topic/partition, then do not update the map with the old offset
+        // If the partitionMap already has the topic/partition, then do not update the map with the old offset 如果partitionMap已经具有topicpartition，则不要使用旧偏移量更新
         if (!partitionMap.contains(topicAndPartition))
           partitionMap.put(
             topicAndPartition,
@@ -196,6 +209,11 @@ abstract class AbstractFetcherThread(name: String,
     } finally partitionMapLock.unlock()
   }
 
+  /**
+   * 延迟分区抓取
+   * @param partitions
+   * @param delay
+   */
   def delayPartitions(partitions: Iterable[TopicAndPartition], delay: Long) {
     partitionMapLock.lockInterruptibly()
     try {
@@ -317,6 +335,7 @@ case class ClientIdTopicPartition(clientId: String, topic: String, partitionId: 
 
 /**
   * case class to keep partition offset and its state(active , inactive)
+  * 保持分区偏移量及其状态（活动、非活动）的case类
   */
 case class PartitionFetchState(offset: Long, delay: DelayedItem) {
 

@@ -57,14 +57,20 @@ class Replica(val brokerId: Int,
 
   def lastCaughtUpTimeMs = lastCaughtUpTimeMsUnderlying.get()
 
+  /**
+   * 更新日志读取结果
+   * @param logReadResult
+   */
   def updateLogReadResult(logReadResult : LogReadResult) {
+    //更新此副本的LEO
     logEndOffset = logReadResult.info.fetchOffsetMetadata
 
-    /* If the request read up to the log end offset snapshot when the read was initiated,
-     * set the lastCaughtUpTimeMsUnderlying to the current time.
-     * This means that the replica is fully caught up.
+    /* If the request read up to the log end offset snapshot when the read was initiated, 如果在启动读取时请求读取到日志结束偏移量快照，
+     * set the lastCaughtUpTimeMsUnderlying to the current time. 请将LastCaughtUptimesUnderling设置为当前时间。
+     * This means that the replica is fully caught up. 这意味着复制副本已完全跟上。
      */
     if(logReadResult.isReadFromLogEnd) {
+      //更新此副本的lastCaughtUpTimeMs
       lastCaughtUpTimeMsUnderlying.set(time.milliseconds)
     }
   }

@@ -39,7 +39,13 @@ object ReplicationUtils extends Logging {
     updatePersistentPath
   }
 
+  /**
+   * 传播ISR变化
+   * @param zkUtils
+   * @param isrChangeSet
+   */
   def propagateIsrChanges(zkUtils: ZkUtils, isrChangeSet: Set[TopicAndPartition]): Unit = {
+    //"/isr_change_notification"路径下写入顺序节点数据
     val isrChangeNotificationPath: String = zkUtils.createSequentialPersistentPath(
       ZkUtils.IsrChangeNotificationPath + "/" + IsrChangeNotificationPrefix,
       generateIsrChangeJson(isrChangeSet))

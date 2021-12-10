@@ -290,18 +290,19 @@ class LogManager(val logDirs: Array[File],
 
   /**
    * Truncate the partition logs to the specified offsets and checkpoint the recovery point to this offset
-   *
+   * 将分区日志截断到指定的偏移量，并将恢复点检查到此偏移量
    * @param partitionAndOffsets Partition logs that need to be truncated
    */
   def truncateTo(partitionAndOffsets: Map[TopicAndPartition, Long]) {
     for ((topicAndPartition, truncateOffset) <- partitionAndOffsets) {
       val log = logs.get(topicAndPartition)
-      // If the log does not exist, skip it
+      // If the log does not exist, skip it 如果日志不存在，请跳过它
       if (log != null) {
-        //May need to abort and pause the cleaning of the log, and resume after truncation is done.
-        val needToStopCleaner: Boolean = (truncateOffset < log.activeSegment.baseOffset)
+        //May need to abort and pause the cleaning of the log, and resume after truncation is done. 可能需要中止并暂停清理日志，并在截断完成后恢复。
+        val needToStopCleaner: Boolean = (truncateOffset < log.activeSegment.baseOffset)//截断偏移小于此段起始偏移量
         if (needToStopCleaner && cleaner != null)
-          cleaner.abortAndPauseCleaning(topicAndPartition)
+          cleaner.abortAndPauseCleaning(topicAndPartition)//清洁器中止清理操作
+        //根据截断偏移量截断日志
         log.truncateTo(truncateOffset)
         if (needToStopCleaner && cleaner != null) {
           cleaner.maybeTruncateCheckpoint(log.dir.getParentFile, topicAndPartition, log.activeSegment.baseOffset)
@@ -314,7 +315,8 @@ class LogManager(val logDirs: Array[File],
 
   /**
    *  Delete all data in a partition and start the log at the new offset
-   *  @param newOffset The new offset to start the log with
+   *  删除分区中的所有数据，并在新的偏移量处启动日志
+   *  @param newOffset The new offset to start the log with 用于启动日志的新偏移量
    */
   def truncateFullyAndStartAt(topicAndPartition: TopicAndPartition, newOffset: Long) {
     val log = logs.get(topicAndPartition)

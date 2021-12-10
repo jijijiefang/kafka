@@ -731,7 +731,8 @@ class Log(val dir: File,
 
   /**
    * Truncate this log so that it ends with the greatest offset < targetOffset.
-   * @param targetOffset The offset to truncate to, an upper bound on all offsets in the log after truncation is complete.
+   * 截断此日志，使其以最大偏移量小于targetOffset结束
+   * @param targetOffset The offset to truncate to, an upper bound on all offsets in the log after truncation is complete. 要截断的偏移量，截断完成后日志中所有偏移量的上限。
    */
   private[log] def truncateTo(targetOffset: Long) {
     info("Truncating log %s to offset %d.".format(name, targetOffset))

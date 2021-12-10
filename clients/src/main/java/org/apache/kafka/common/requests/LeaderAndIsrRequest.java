@@ -33,6 +33,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * 更新Leader和ISR的请求
+ */
 public class LeaderAndIsrRequest extends AbstractRequest {
 
     private static final Schema CURRENT_SCHEMA = ProtoUtils.currentRequestSchema(ApiKeys.LEADER_AND_ISR.id);
@@ -42,7 +45,7 @@ public class LeaderAndIsrRequest extends AbstractRequest {
     private static final String PARTITION_STATES_KEY_NAME = "partition_states";
     private static final String LIVE_LEADERS_KEY_NAME = "live_leaders";
 
-    // partition_states key names
+    // partition_states key names 分区状态key名称
     private static final String TOPIC_KEY_NAME = "topic";
     private static final String PARTITION_KEY_NAME = "partition";
     private static final String LEADER_KEY_NAME = "leader";
@@ -51,7 +54,7 @@ public class LeaderAndIsrRequest extends AbstractRequest {
     private static final String ZK_VERSION_KEY_NAME = "zk_version";
     private static final String REPLICAS_KEY_NAME = "replicas";
 
-    // live_leaders key names
+    // live_leaders key names 在线Leader key名称
     private static final String END_POINT_ID_KEY_NAME = "id";
     private static final String HOST_KEY_NAME = "host";
     private static final String PORT_KEY_NAME = "port";

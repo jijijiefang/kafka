@@ -35,6 +35,7 @@ case class FetchPartitionStatus(startOffsetMetadata: LogOffsetMetadata, fetchInf
 
 /**
  * The fetch metadata maintained by the delayed fetch operation
+ * 由延迟的获取操作维护的获取元数据
  */
 case class FetchMetadata(fetchMinBytes: Int,
                          fetchOnlyLeader: Boolean,
@@ -60,13 +61,14 @@ class DelayedFetch(delayMs: Long,
 
   /**
    * The operation can be completed if:
-   *
-   * Case A: This broker is no longer the leader for some partitions it tries to fetch
-   * Case B: This broker does not know of some partitions it tries to fetch
-   * Case C: The fetch offset locates not on the last segment of the log
-   * Case D: The accumulated bytes from all the fetching partitions exceeds the minimum bytes
+   * 如果满足以下条件，则可以完成该操作：
+   * Case A: This broker is no longer the leader for some partitions it tries to fetch 案例A：此代理不再是它尝试获取的某些分区Leader
+   * Case B: This broker does not know of some partitions it tries to fetch 案例B：此代理不知道它尝试获取的某些分区
+   * Case C: The fetch offset locates not on the last segment of the log 案例C：获取偏移量不在日志的最后一段
+   * Case D: The accumulated bytes from all the fetching partitions exceeds the minimum bytes 案例D：所有获取分区的累积字节数超过了最小字节数
    *
    * Upon completion, should return whatever data is available for each valid partition
+   * 完成后，应该返回每个有效分区可用的任何数据
    */
   override def tryComplete() : Boolean = {
     var accumulatedSize = 0
@@ -75,6 +77,7 @@ class DelayedFetch(delayMs: Long,
         val fetchOffset = fetchStatus.startOffsetMetadata
         try {
           if (fetchOffset != LogOffsetMetadata.UnknownOffsetMetadata) {
+            //获取此主题分区的本地Leader副本
             val replica = replicaManager.getLeaderReplicaIfLocal(topicAndPartition.topic, topicAndPartition.partition)
             val endOffset =
               if (fetchMetadata.fetchOnlyCommitted)
@@ -82,21 +85,21 @@ class DelayedFetch(delayMs: Long,
               else
                 replica.logEndOffset
 
-            // Go directly to the check for Case D if the message offsets are the same. If the log segment
+            // Go directly to the check for Case D if the message offsets are the same. If the log segment 如果消息偏移量相同，则直接转到检查案例D。
             // has just rolled, then the high watermark offset will remain the same but be on the old segment,
-            // which would incorrectly be seen as an instance of Case C.
+            // which would incorrectly be seen as an instance of Case C. 如果日志段刚刚滚动，则高水位线偏移量将保持不变，但位于旧段上，这将被错误地视为案例C的一个实例
             if (endOffset.messageOffset != fetchOffset.messageOffset) {
               if (endOffset.onOlderSegment(fetchOffset)) {
-                // Case C, this can happen when the new fetch operation is on a truncated leader
+                // Case C, this can happen when the new fetch operation is on a truncated leader 在案例C中，当新的获取操作位于截断的前导上时，可能会发生这种情况
                 debug("Satisfying fetch %s since it is fetching later segments of partition %s.".format(fetchMetadata, topicAndPartition))
                 return forceComplete()
               } else if (fetchOffset.onOlderSegment(endOffset)) {
                 // Case C, this can happen when the fetch operation is falling behind the current segment
-                // or the partition has just rolled a new segment
+                // or the partition has just rolled a new segment 在案例C中，当fetch操作落后于当前段或者分区刚刚滚动了一个新段时，就会发生这种情况
                 debug("Satisfying fetch %s immediately since it is fetching older segments.".format(fetchMetadata))
                 return forceComplete()
               } else if (fetchOffset.messageOffset < endOffset.messageOffset) {
-                // we need take the partition fetch size as upper bound when accumulating the bytes
+                // we need take the partition fetch size as upper bound when accumulating the bytes 在累积字节时，我们需要将分区获取大小作为上限
                 accumulatedSize += math.min(endOffset.positionDiff(fetchOffset), fetchStatus.fetchInfo.fetchSize)
               }
             }

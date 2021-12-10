@@ -118,6 +118,10 @@ class KafkaApis(val requestChannel: RequestChannel,
       request.apiLocalCompleteTimeMs = SystemTime.milliseconds
   }
 
+  /**
+   * 处理Leader和ISR请求
+   * @param request
+   */
   def handleLeaderAndIsrRequest(request: RequestChannel.Request) {
     // ensureTopicExists is only for client facing requests
     // We can't have the ensureTopicExists check here since the controller sends it as an advisory to all brokers so they
@@ -127,22 +131,25 @@ class KafkaApis(val requestChannel: RequestChannel,
 
     try {
       def onLeadershipChange(updatedLeaders: Iterable[Partition], updatedFollowers: Iterable[Partition]) {
-        // for each new leader or follower, call coordinator to handle consumer group migration.
+        // for each new leader or follower, call coordinator to handle consumer group migration. 对于每个新的领导者或追随者，请致电协调者处理消费群体迁移。
         // this callback is invoked under the replica state change lock to ensure proper order of
-        // leadership changes
+        // leadership changes 此回调在副本状态更改锁下调用，以确保领导关系更改的顺序正确
+        //遍历更新后的Leader集合
         updatedLeaders.foreach { partition =>
           if (partition.topic == TopicConstants.GROUP_METADATA_TOPIC_NAME)
-            coordinator.handleGroupImmigration(partition.partitionId)
+            coordinator.handleGroupImmigration(partition.partitionId)//Immigration移民入境
         }
+        //遍历更新后的Follower集合
         updatedFollowers.foreach { partition =>
           if (partition.topic == TopicConstants.GROUP_METADATA_TOPIC_NAME)
-            coordinator.handleGroupEmigration(partition.partitionId)
+            coordinator.handleGroupEmigration(partition.partitionId)//Emigration移民出境
         }
       }
 
       val responseHeader = new ResponseHeader(correlationId)
       val leaderAndIsrResponse =
         if (authorize(request.session, ClusterAction, Resource.ClusterResource)) {
+          //变成Leader或Follower
           val result = replicaManager.becomeLeaderOrFollower(correlationId, leaderAndIsrRequest, metadataCache, onLeadershipChange)
           new LeaderAndIsrResponse(result.errorCode, result.responseMap.mapValues(new JShort(_)).asJava)
         } else {
@@ -158,6 +165,10 @@ class KafkaApis(val requestChannel: RequestChannel,
     }
   }
 
+  /**
+   * 处理停止复制请求
+   * @param request
+   */
   def handleStopReplicaRequest(request: RequestChannel.Request) {
     // ensureTopicExists is only for client facing requests
     // We can't have the ensureTopicExists check here since the controller sends it as an advisory to all brokers so they
@@ -178,6 +189,10 @@ class KafkaApis(val requestChannel: RequestChannel,
     replicaManager.replicaFetcherManager.shutdownIdleFetcherThreads()
   }
 
+  /**
+   * 处理更新元数据请求
+   * @param request
+   */
   def handleUpdateMetadataRequest(request: RequestChannel.Request) {
     val correlationId = request.header.correlationId
     val updateMetadataRequest = request.body.asInstanceOf[UpdateMetadataRequest]
@@ -431,7 +446,7 @@ class KafkaApis(val requestChannel: RequestChannel,
 
   /**
    * Handle a fetch request
-   * 处理拉取请求
+   * Leader副本处理拉取请求
    */
   def handleFetchRequest(request: RequestChannel.Request) {
     val fetchRequest = request.requestObj.asInstanceOf[FetchRequest]
@@ -444,22 +459,22 @@ class KafkaApis(val requestChannel: RequestChannel,
       FetchResponsePartitionData(Errors.TOPIC_AUTHORIZATION_FAILED.code, -1, MessageSet.Empty)
     }
 
-    // the callback for sending a fetch response
+    // the callback for sending a fetch response 用于发送拉取响应的回调
     def sendResponseCallback(responsePartitionData: Map[TopicAndPartition, FetchResponsePartitionData]) {
 
       val convertedPartitionData =
-        // Need to down-convert message when consumer only takes magic value 0.
+        // Need to down-convert message when consumer only takes magic value 0. 当消费者只接受魔法值0时，需要向下转换消息。
         if (fetchRequest.versionId <= 1) {
           responsePartitionData.map { case (tp, data) =>
 
-            // We only do down-conversion when:
-            // 1. The message format version configured for the topic is using magic value > 0, and
-            // 2. The message set contains message whose magic > 0
-            // This is to reduce the message format conversion as much as possible. The conversion will only occur
-            // when new message format is used for the topic and we see an old request.
-            // Please note that if the message format is changed from a higher version back to lower version this
+            // We only do down-conversion when: 我们仅在以下情况下进行下转换：
+            // 1. The message format version configured for the topic is using magic value > 0, and 1.为主题配置的消息格式版本使用magic value>0，并且
+            // 2. The message set contains message whose magic > 0 2.消息集包含魔力>0的消息
+            // This is to reduce the message format conversion as much as possible. The conversion will only occur 这是为了尽可能减少消息格式转换。
+            // when new message format is used for the topic and we see an old request. 只有当主题使用新的消息格式并且我们看到旧请求时，才会发生转换
+            // Please note that if the message format is changed from a higher version back to lower version this 请注意，如果消息格式从较高版本更改回较低版本，
             // test might break because some messages in new message format can be delivered to consumers before 0.10.0.0
-            // without format down conversion.
+            // without format down conversion. 此测试可能会中断，因为某些新消息格式的消息可以在0.10之前交付给消费者。0.0，无格式下转换。
             val convertedData = if (replicaManager.getMessageFormatVersion(tp).exists(_ > Message.MagicValue_V0) &&
               !data.messages.isMagicValueInAllWrapperMessages(Message.MagicValue_V0)) {
               trace(s"Down converting message to V0 for fetch request from ${fetchRequest.clientId}")
@@ -489,10 +504,10 @@ class KafkaApis(val requestChannel: RequestChannel,
       }
 
 
-      // When this callback is triggered, the remote API call has completed
+      // When this callback is triggered, the remote API call has completed 触发此回调时，远程API调用已完成
       request.apiRemoteCompleteTimeMs = SystemTime.milliseconds
 
-      // Do not throttle replication traffic
+      // Do not throttle replication traffic 不要限制复制流量
       if (fetchRequest.isFromFollower) {
         fetchResponseCallback(0)
       } else {
@@ -506,7 +521,7 @@ class KafkaApis(val requestChannel: RequestChannel,
     if (authorizedRequestInfo.isEmpty)
       sendResponseCallback(Map.empty)
     else {
-      // call the replica manager to fetch messages from the local replica
+      // call the replica manager to fetch messages from the local replica 调用副本管理器从本地副本拉取数据
       replicaManager.fetchMessages(
         fetchRequest.maxWait.toLong,
         fetchRequest.replicaId,
@@ -518,6 +533,7 @@ class KafkaApis(val requestChannel: RequestChannel,
 
   /**
    * Handle an offset request
+   * 处理一个偏移量请求
    */
   def handleOffsetRequest(request: RequestChannel.Request) {
     val correlationId = request.header.correlationId
