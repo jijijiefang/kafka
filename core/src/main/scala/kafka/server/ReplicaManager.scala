@@ -533,7 +533,7 @@ class ReplicaManager(val config: KafkaConfig,
     // if the fetch comes from the follower,
     // update its corresponding log end offset 如果拉取来自Follower，则更新其相应的LEO
     if(Request.isValidBrokerId(replicaId))
-      updateFollowerLogReadResults(replicaId, logReadResults)//更新跟随者副本日志读取结果 更新Follower副本LEO
+      updateFollowerLogReadResults(replicaId, logReadResults)//更新跟随者副本日志读取结果,更新Follower副本LEO和lastCaughtUpTimeMs
 
     // check if this fetch request can be satisfied right away 检查是否可以立即满足此拉取请求
     val bytesReadable = logReadResults.values.map(_.info.messageSet.sizeInBytes).sum
@@ -970,7 +970,7 @@ class ReplicaManager(val config: KafkaConfig,
     readResults.foreach { case (topicAndPartition, readResult) =>
       getPartition(topicAndPartition.topic, topicAndPartition.partition) match {
         case Some(partition) =>
-          //更新分区副本的LEO
+          //更新分区副本的LEO和lastCaughtUpTimeMs
           partition.updateReplicaLogReadResult(replicaId, readResult)
 
           // for producer requests with ack > 1, we need to check 对于ack>1的生产者请求，我们需要检查

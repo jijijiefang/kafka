@@ -244,7 +244,7 @@ class Partition(val topic: String,
 
     getReplica(replicaId) match {
       case Some(replica) =>
-        //更新这个Follower的LEO
+        //更新这个Follower的LEO和lastCaughtUpTimeMs
         replica.updateLogReadResult(logReadResult)
         // check if we need to expand ISR to include this replica 检查是否需要扩展ISR以包括此复制副本
         // if it is not in the ISR yet 如果它尚未包含在ISR中
@@ -295,7 +295,7 @@ class Partition(val topic: String,
 
           // check if the HW of the partition can now be incremented 检查分区的HW现在是否可以增加，因为复制副本现在可能在ISR中，并且其LEO刚刚增加
           // since the replica maybe now be in the ISR and its LEO has just incremented
-          //更新HW
+          //更新Leader副本的HW
           maybeIncrementLeaderHW(leaderReplica)
 
         case None => false // nothing to do if no longer leader 如果不再是领导者，就没什么可做的了
@@ -383,7 +383,7 @@ class Partition(val topic: String,
     val oldHighWatermark = leaderReplica.highWatermark
     //如果旧HW小于新HW或旧HW在旧文件段上，新HW在新文件段上
     if (oldHighWatermark.messageOffset < newHighWatermark.messageOffset || oldHighWatermark.onOlderSegment(newHighWatermark)) {
-      //更新HW
+      //更新Leader副本的HW
       leaderReplica.highWatermark = newHighWatermark
       debug("High watermark for partition [%s,%d] updated to %s".format(topic, partitionId, newHighWatermark))
       true
@@ -518,6 +518,7 @@ class Partition(val topic: String,
    */
   private def updateIsr(newIsr: Set[Replica]) {
     val newLeaderAndIsr = new LeaderAndIsr(localBrokerId, leaderEpoch, newIsr.map(r => r.brokerId).toList, zkVersion)
+    //更新ZK中记录的Leader和ISR列表数据
     val (updateSucceeded,newVersion) = ReplicationUtils.updateLeaderAndIsr(zkUtils, topic, partitionId,
       newLeaderAndIsr, controllerEpoch, zkVersion)
 

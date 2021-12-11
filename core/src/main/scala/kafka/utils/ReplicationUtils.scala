@@ -29,12 +29,22 @@ object ReplicationUtils extends Logging {
 
   private val IsrChangeNotificationPrefix = "isr_change_"
 
+  /**
+   * 更新ZK中Leader和ISR数据
+   * @param zkUtils
+   * @param topic
+   * @param partitionId
+   * @param newLeaderAndIsr
+   * @param controllerEpoch
+   * @param zkVersion
+   * @return
+   */
   def updateLeaderAndIsr(zkUtils: ZkUtils, topic: String, partitionId: Int, newLeaderAndIsr: LeaderAndIsr, controllerEpoch: Int,
     zkVersion: Int): (Boolean,Int) = {
     debug("Updated ISR for partition [%s,%d] to %s".format(topic, partitionId, newLeaderAndIsr.isr.mkString(",")))
     val path = getTopicPartitionLeaderAndIsrPath(topic, partitionId)
     val newLeaderData = zkUtils.leaderAndIsrZkData(newLeaderAndIsr, controllerEpoch)
-    // use the epoch of the controller that made the leadership decision, instead of the current controller epoch
+    // use the epoch of the controller that made the leadership decision, instead of the current controller epoch 使用做出领导决策的控制器的历元，而不是当前控制器历元
     val updatePersistentPath: (Boolean, Int) = zkUtils.conditionalUpdatePersistentPath(path, newLeaderData, zkVersion, Some(checkLeaderAndIsrZkData))
     updatePersistentPath
   }

@@ -58,7 +58,7 @@ class Replica(val brokerId: Int,
   def lastCaughtUpTimeMs = lastCaughtUpTimeMsUnderlying.get()
 
   /**
-   * 更新日志读取结果
+   * 更新日志读取结果,更新副本LEO和lastCaughtUpTimeMs
    * @param logReadResult
    */
   def updateLogReadResult(logReadResult : LogReadResult) {
@@ -91,6 +91,10 @@ class Replica(val brokerId: Int,
     else
       logEndOffsetMetadata
 
+  /**
+   * 更新HW
+   * @param newHighWatermark
+   */
   def highWatermark_=(newHighWatermark: LogOffsetMetadata) {
     if (isLocal) {
       highWatermarkMetadata = newHighWatermark
