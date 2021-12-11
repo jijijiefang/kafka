@@ -25,7 +25,7 @@ object Request {
   val OrdinaryConsumerId: Int = -1
   val DebuggingConsumerId: Int = -2
 
-  // Broker ids are non-negative int.
+  // Broker ids are non-negative int. 代理ID是非负整数。
   def isValidBrokerId(brokerId: Int): Boolean = (brokerId >= 0)
 }
 

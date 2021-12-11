@@ -562,7 +562,7 @@ public class Fetcher<K, V> {
             }
         }
 
-        // create the fetches
+        // create the fetches 创建拉取请求
         Map<Node, FetchRequest> requests = new HashMap<>();
         for (Map.Entry<Node, Map<TopicPartition, FetchRequest.PartitionData>> entry : fetchable.entrySet()) {
             Node node = entry.getKey();

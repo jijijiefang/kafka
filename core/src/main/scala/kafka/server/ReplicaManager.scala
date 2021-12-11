@@ -521,6 +521,7 @@ class ReplicaManager(val config: KafkaConfig,
                     fetchMinBytes: Int,
                     fetchInfo: immutable.Map[TopicAndPartition, PartitionFetchInfo],
                     responseCallback: Map[TopicAndPartition, FetchResponsePartitionData] => Unit) {
+    //replicaId如果大于等于0说明来自Follower，否则来自于消费者
     val isFromFollower = replicaId >= 0
     //是否只从Leader拉取，条件是非debug模式
     val fetchOnlyFromLeader: Boolean = replicaId != Request.DebuggingConsumerId
