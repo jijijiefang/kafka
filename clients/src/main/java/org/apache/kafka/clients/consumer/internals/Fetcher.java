@@ -460,8 +460,8 @@ public class Fetcher<K, V> {
     /**
      * Fetch a single offset before the given timestamp for the partition.
      * 在分区的给定时间戳之前获取单个偏移量
-     * @param topicPartition The partition that needs fetching offset.
-     * @param timestamp The timestamp for fetching offset.
+     * @param topicPartition The partition that needs fetching offset. 需要获取偏移量的分区
+     * @param timestamp The timestamp for fetching offset. 获取偏移量的时间戳
      * @return A response which can be polled to obtain the corresponding offset.
      */
     private RequestFuture<Long> sendListOffsetRequest(final TopicPartition topicPartition, long timestamp) {

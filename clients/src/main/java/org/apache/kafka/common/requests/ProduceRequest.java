@@ -38,16 +38,18 @@ public class ProduceRequest extends AbstractRequest {
     private static final String TIMEOUT_KEY_NAME = "timeout";
     private static final String TOPIC_DATA_KEY_NAME = "topic_data";
 
-    // topic level field names
+    // topic level field names 主题级别字段名称
     private static final String TOPIC_KEY_NAME = "topic";
     private static final String PARTITION_DATA_KEY_NAME = "data";
 
-    // partition level field names
+    // partition level field names 分区级别字段名称
     private static final String PARTITION_KEY_NAME = "partition";
     private static final String RECORD_SET_KEY_NAME = "record_set";
-
+    //acks参数
     private final short acks;
+    //超时时间
     private final int timeout;
+    //主题分区消息数据
     private final Map<TopicPartition, ByteBuffer> partitionRecords;
 
     public ProduceRequest(short acks, int timeout, Map<TopicPartition, ByteBuffer> partitionRecords) {

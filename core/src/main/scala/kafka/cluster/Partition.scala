@@ -471,7 +471,7 @@ class Partition(val topic: String,
   }
 
   /**
-   * 追加消息至Leader
+   * 追加消息至Leader副本
    * @param messages
    * @param requiredAcks
    * @return
@@ -483,6 +483,7 @@ class Partition(val topic: String,
         //判断当前Partition是否是Leader
         case Some(leaderReplica) =>
           val log = leaderReplica.log.get
+          //ISR最少数量
           val minIsr = log.config.minInSyncReplicas
           //ISR列表数量
           val inSyncSize = inSyncReplicas.size

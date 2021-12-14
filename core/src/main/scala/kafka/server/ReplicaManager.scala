@@ -341,6 +341,12 @@ class ReplicaManager(val config: KafkaConfig,
       throw new ReplicaNotAvailableException("Replica %d is not available for partition [%s,%d]".format(config.brokerId, topic, partition))
   }
 
+  /**
+   * 获取此主题分区的本地Leader副本
+   * @param topic 主题
+   * @param partitionId 分区
+   * @return
+   */
   def getLeaderReplicaIfLocal(topic: String, partitionId: Int): Replica =  {
     val partitionOpt = getPartition(topic, partitionId)
     partitionOpt match {
@@ -381,7 +387,7 @@ class ReplicaManager(val config: KafkaConfig,
                      internalTopicsAllowed: Boolean,
                      messagesPerPartition: Map[TopicPartition, MessageSet],
                      responseCallback: Map[TopicPartition, PartitionResponse] => Unit) {
-
+    //校验acks参数是否正确
     if (isValidRequiredAcks(requiredAcks)) {
       val sTime = SystemTime.milliseconds
       //追加消息至本地文件

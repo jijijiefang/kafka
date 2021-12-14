@@ -75,24 +75,43 @@ class KafkaApis(val requestChannel: RequestChannel,
       trace("Handling request:%s from connection %s;securityProtocol:%s,principal:%s".
         format(request.requestDesc(true), request.connectionId, request.securityProtocol, request.session.principal))
       ApiKeys.forId(request.requestId) match {
+        //生产者发送消息请求
         case ApiKeys.PRODUCE => handleProducerRequest(request)
+        //消费者或者副本Follower拉取消息请求
         case ApiKeys.FETCH => handleFetchRequest(request)
+        //获取Topic 当前offset 的元数据信息的请求
         case ApiKeys.LIST_OFFSETS => handleOffsetRequest(request)
+        //获取Topic 元数据信息的请求
         case ApiKeys.METADATA => handleTopicMetadataRequest(request)
+        //副本Leader和ISR列表发生变化请求
         case ApiKeys.LEADER_AND_ISR => handleLeaderAndIsrRequest(request)
+        //停止拷贝副本数据的请求
         case ApiKeys.STOP_REPLICA => handleStopReplicaRequest(request)
+        //更新Topic元数据信息的请求
         case ApiKeys.UPDATE_METADATA_KEY => handleUpdateMetadataRequest(request)
+        //Broker Server 下线的请求
         case ApiKeys.CONTROLLED_SHUTDOWN_KEY => handleControlledShutdownRequest(request)
+        //消费者保存偏移量的请求
         case ApiKeys.OFFSET_COMMIT => handleOffsetCommitRequest(request)
+        //获取消费者获取消费详情的请求
         case ApiKeys.OFFSET_FETCH => handleOffsetFetchRequest(request)
+        //查询消费组组协调器元数据请求
         case ApiKeys.GROUP_COORDINATOR => handleGroupCoordinatorRequest(request)
+        //加入消费组请求
         case ApiKeys.JOIN_GROUP => handleJoinGroupRequest(request)
+        //发送心跳
         case ApiKeys.HEARTBEAT => handleHeartbeatRequest(request)
+        //离开消费组请求
         case ApiKeys.LEAVE_GROUP => handleLeaveGroupRequest(request)
+        //同步消费组请求
         case ApiKeys.SYNC_GROUP => handleSyncGroupRequest(request)
+        //描述消费组请求
         case ApiKeys.DESCRIBE_GROUPS => handleDescribeGroupRequest(request)
+        //列出消费组请求
         case ApiKeys.LIST_GROUPS => handleListGroupsRequest(request)
+        //握手请求
         case ApiKeys.SASL_HANDSHAKE => handleSaslHandshakeRequest(request)
+        //API版本请求
         case ApiKeys.API_VERSIONS => handleApiVersionsRequest(request)
         case requestId => throw new KafkaException("Unknown api code " + requestId)
       }
@@ -242,7 +261,7 @@ class KafkaApis(val requestChannel: RequestChannel,
       val responseBody = new OffsetCommitResponse(results.asJava)
       requestChannel.sendResponse(new RequestChannel.Response(request, new ResponseSend(request.connectionId, responseHeader, responseBody)))
     } else {
-      // filter non-existent topics
+      // filter non-existent topics 过滤不存在的主题
       val invalidRequestsInfo = offsetCommitRequest.offsetData.asScala.filter { case (topicPartition, _) =>
         !metadataCache.contains(topicPartition.topic)
       }
@@ -339,7 +358,8 @@ class KafkaApis(val requestChannel: RequestChannel,
     authorizer.map(_.authorize(session, operation, resource)).getOrElse(true)
 
   /**
-   * Handle a produce request 处理生产请求
+   * Handle a produce request
+   * 处理生产请求
    */
   def handleProducerRequest(request: RequestChannel.Request) {
     val produceRequest = request.body.asInstanceOf[ProduceRequest]
@@ -410,7 +430,7 @@ class KafkaApis(val requestChannel: RequestChannel,
         }
       }
 
-      // When this callback is triggered, the remote API call has completed
+      // When this callback is triggered, the remote API call has completed 触发此回调时，远程API调用已完成
       request.apiRemoteCompleteTimeMs = SystemTime.milliseconds
 
       quotaManagers(ApiKeys.PRODUCE.id).recordAndMaybeThrottle(
@@ -424,12 +444,12 @@ class KafkaApis(val requestChannel: RequestChannel,
     else {
       val internalTopicsAllowed = request.header.clientId == AdminUtils.AdminClientId
 
-      // Convert ByteBuffer to ByteBufferMessageSet
+      // Convert ByteBuffer to ByteBufferMessageSet 将ByteBuffer转换为ByteBufferMessageSet
       val authorizedMessagesPerPartition = authorizedRequestInfo.map {
         case (topicPartition, buffer) => (topicPartition, new ByteBufferMessageSet(buffer))
       }
 
-      // call the replica manager to append messages to the replicas 调用副本管理器将消息附加到副本
+      // call the replica manager to append messages to the replicas 调用副本管理器将消息附加到Leader副本
       replicaManager.appendMessages(
         produceRequest.timeout.toLong,
         produceRequest.acks,
@@ -437,8 +457,8 @@ class KafkaApis(val requestChannel: RequestChannel,
         authorizedMessagesPerPartition,
         sendResponseCallback)
 
-      // if the request is put into the purgatory, it will have a held reference
-      // and hence cannot be garbage collected; hence we clear its data here in
+      // if the request is put into the purgatory, it will have a held reference 如果请求被放入炼狱，它将有一个保持的引用，因此不能被垃圾收集；
+      // and hence cannot be garbage collected; hence we clear its data here in 因此，我们在这里清除它的数据，以便让GC重新声明它的内存，因为它已经附加到日志中
       // order to let GC re-claim its memory since it is already appended to log
       produceRequest.clearPartitionRecords()
     }
@@ -547,30 +567,35 @@ class KafkaApis(val requestChannel: RequestChannel,
     val unauthorizedResponseStatus = unauthorizedRequestInfo.mapValues(_ =>
       new ListOffsetResponse.PartitionData(Errors.TOPIC_AUTHORIZATION_FAILED.code, List[JLong]().asJava)
     )
-
+    //
     val responseMap = authorizedRequestInfo.map(elem => {
       val (topicPartition, partitionData) = elem
       try {
-        // ensure leader exists
+        // ensure leader exists 确保领导者存在
         val localReplica = if (offsetRequest.replicaId != ListOffsetRequest.DEBUGGING_REPLICA_ID)
-          replicaManager.getLeaderReplicaIfLocal(topicPartition.topic, topicPartition.partition)
+          replicaManager.getLeaderReplicaIfLocal(topicPartition.topic, topicPartition.partition)//获取此主题分区的本地Leader副本
         else
           replicaManager.getReplicaOrException(topicPartition.topic, topicPartition.partition)
+
+        //返回的偏移
         val offsets = {
           val allOffsets = fetchOffsets(replicaManager.logManager,
                                         topicPartition,
                                         partitionData.timestamp,
                                         partitionData.maxNumOffsets)
+          //如果是Debug模式,直接返回所有的偏移量
           if (offsetRequest.replicaId != ListOffsetRequest.CONSUMER_REPLICA_ID) {
             allOffsets
           } else {
+            //从Leader副本获取HW
             val hw = localReplica.highWatermark.messageOffset
-            if (allOffsets.exists(_ > hw))
+            if (allOffsets.exists(_ > hw))//如果偏移量大于HW，则移除，移除后HW加入
               hw +: allOffsets.dropWhile(_ > hw)
             else
               allOffsets
           }
         }
+        //组装响应参数
         (topicPartition, new ListOffsetResponse.PartitionData(Errors.NONE.code, offsets.map(new JLong(_)).asJava))
       } catch {
         // NOTE: UnknownTopicOrPartitionException and NotLeaderForPartitionException are special cased since these error messages
@@ -597,6 +622,14 @@ class KafkaApis(val requestChannel: RequestChannel,
     requestChannel.sendResponse(new RequestChannel.Response(request, new ResponseSend(request.connectionId, responseHeader, response)))
   }
 
+  /**
+   * 使用LogManager获取log,再获取偏移
+   * @param logManager 日志管理器
+   * @param topicPartition 主题分区
+   * @param timestamp 时间戳常量，最早或者最晚
+   * @param maxNumOffsets 获取多少个偏移量
+   * @return
+   */
   def fetchOffsets(logManager: LogManager, topicPartition: TopicPartition, timestamp: Long, maxNumOffsets: Int): Seq[Long] = {
     logManager.getLog(TopicAndPartition(topicPartition.topic, topicPartition.partition)) match {
       case Some(log) =>
@@ -609,9 +642,17 @@ class KafkaApis(val requestChannel: RequestChannel,
     }
   }
 
+  /**
+   * 获取之前的偏移量
+   * @param log 日志
+   * @param timestamp 时间戳常量，最早或最晚
+   * @param maxNumOffsets
+   * @return
+   */
   private[server] def fetchOffsetsBefore(log: Log, timestamp: Long, maxNumOffsets: Int): Seq[Long] = {
     val segsArray = log.logSegments.toArray
     var offsetTimeArray: Array[(Long, Long)] = null
+    //最后一个日志段已经有内容
     val lastSegmentHasSize = segsArray.last.size > 0
     if (lastSegmentHasSize)
       offsetTimeArray = new Array[(Long, Long)](segsArray.length + 1)
@@ -619,9 +660,9 @@ class KafkaApis(val requestChannel: RequestChannel,
       offsetTimeArray = new Array[(Long, Long)](segsArray.length)
 
     for (i <- 0 until segsArray.length)
-      offsetTimeArray(i) = (segsArray(i).baseOffset, segsArray(i).lastModified)
+      offsetTimeArray(i) = (segsArray(i).baseOffset, segsArray(i).lastModified)//日志段每个文件的起始偏移量和最后修改时间戳
     if (lastSegmentHasSize)
-      offsetTimeArray(segsArray.length) = (log.logEndOffset, SystemTime.milliseconds)
+      offsetTimeArray(segsArray.length) = (log.logEndOffset, SystemTime.milliseconds)//最后一个日志段，LEO和当前时间戳
 
     var startIndex = -1
     timestamp match {
@@ -640,17 +681,26 @@ class KafkaApis(val requestChannel: RequestChannel,
             startIndex -= 1
         }
     }
-
+    //如果maxNumOffsets是1且LATEST_TIMESTAMP，则是获取日志段最后一个日志的baseOffset，即是当前日志段的LEO
+    //如果是EARLIEST_TIMESTAMP，则是获取日志段第一个日志的baseOffset
     val retSize = maxNumOffsets.min(startIndex + 1)
     val ret = new Array[Long](retSize)
     for (j <- 0 until retSize) {
-      ret(j) = offsetTimeArray(startIndex)._1
+      ret(j) = offsetTimeArray(startIndex)._1//offsetTimeArray获取这个数组每个tuple中的第一个元素，baseOffset
       startIndex -= 1
     }
     // ensure that the returned seq is in descending order of offsets
     ret.toSeq.sortBy(-_)
   }
 
+  /**
+   * 创建主题
+   * @param topic 主题
+   * @param numPartitions 分区数
+   * @param replicationFactor 副本因子
+   * @param properties
+   * @return
+   */
   private def createTopic(topic: String,
                           numPartitions: Int,
                           replicationFactor: Int,
@@ -687,15 +737,26 @@ class KafkaApis(val requestChannel: RequestChannel,
     topicMetadata.headOption.getOrElse(createGroupMetadataTopic())
   }
 
+  /**
+   * 获取主题元数据
+   * @param topics 主题
+   * @param securityProtocol 协议
+   * @param errorUnavailableEndpoints
+   * @return
+   */
   private def getTopicMetadata(topics: Set[String], securityProtocol: SecurityProtocol, errorUnavailableEndpoints: Boolean): Seq[MetadataResponse.TopicMetadata] = {
+    //获取主题元数据
     val topicResponses = metadataCache.getTopicMetadata(topics, securityProtocol, errorUnavailableEndpoints)
     if (topics.isEmpty || topicResponses.size == topics.size) {
       topicResponses
     } else {
+      //不存在的主题集合
       val nonExistentTopics = topics -- topicResponses.map(_.topic).toSet
       val responsesForNonExistentTopics = nonExistentTopics.map { topic =>
+        //如果是偏移量的主题，内部主题
         if (topic == TopicConstants.GROUP_METADATA_TOPIC_NAME) {
           createGroupMetadataTopic()
+        //是否开启自动创建主题
         } else if (config.autoCreateTopicsEnable) {
           createTopic(topic, config.numPartitions, config.defaultReplicationFactor)
         } else {
@@ -708,14 +769,15 @@ class KafkaApis(val requestChannel: RequestChannel,
   }
 
   /**
-   * Handle a topic metadata request 处理主题元数据信息请求
+   * Handle a topic metadata request
+   * 处理主题元数据信息请求
    */
   def handleTopicMetadataRequest(request: RequestChannel.Request) {
     val metadataRequest = request.body.asInstanceOf[MetadataRequest]
     val requestVersion = request.header.apiVersion()
 
     val topics =
-      // Handle old metadata request logic. Version 0 has no way to specify "no topics".
+      // Handle old metadata request logic. Version 0 has no way to specify "no topics". 处理旧的元数据请求逻辑。版本0无法指定“无主题”
       if (requestVersion == 0) {
         if (metadataRequest.topics() == null || metadataRequest.topics().isEmpty)
           metadataCache.getAllTopics()
@@ -749,7 +811,7 @@ class KafkaApis(val requestChannel: RequestChannel,
 
     // In version 0, we returned an error when brokers with replicas were unavailable,
     // while in higher versions we simply don't include the broker in the returned broker list
-    val errorUnavailableEndpoints = requestVersion == 0
+    val errorUnavailableEndpoints = requestVersion == 0 //0版本的就是true
     val topicMetadata =
       if (authorizedTopics.isEmpty)
         Seq.empty[MetadataResponse.TopicMetadata]

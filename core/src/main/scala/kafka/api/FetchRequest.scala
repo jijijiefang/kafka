@@ -30,6 +30,11 @@ import org.apache.kafka.common.protocol.{ApiKeys, Errors}
 
 import scala.collection.immutable.Map
 
+/**
+ * 分区拉取信息
+ * @param offset 偏移量
+ * @param fetchSize 拉取数量
+ */
 case class PartitionFetchInfo(offset: Long, fetchSize: Int)
 
 object FetchRequest {

@@ -28,6 +28,7 @@ public final class TopicConstants {
     }
 
     // TODO: we store both group metadata and offset data here despite the topic name being offsets only
+    // 我们在这里存储组元数据和偏移量数据，尽管主题名称仅为偏移量
     public static final String GROUP_METADATA_TOPIC_NAME = "__consumer_offsets";
     public static final Collection<String> INTERNAL_TOPICS = Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(GROUP_METADATA_TOPIC_NAME)));
 }

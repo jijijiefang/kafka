@@ -90,7 +90,7 @@ class DelayedFetch(delayMs: Long,
             // which would incorrectly be seen as an instance of Case C. 如果日志段刚刚滚动，则高水位线偏移量将保持不变，但位于旧段上，这将被错误地视为案例C的一个实例
             if (endOffset.messageOffset != fetchOffset.messageOffset) {
               if (endOffset.onOlderSegment(fetchOffset)) {
-                // Case C, this can happen when the new fetch operation is on a truncated leader 在案例C中，当新的获取操作位于截断的前导上时，可能会发生这种情况
+                // Case C, this can happen when the new fetch operation is on a truncated leader 在案例C中，当新的获取操作位于截断的Leader上时，可能会发生这种情况
                 debug("Satisfying fetch %s since it is fetching later segments of partition %s.".format(fetchMetadata, topicAndPartition))
                 return forceComplete()
               } else if (fetchOffset.onOlderSegment(endOffset)) {
@@ -114,7 +114,7 @@ class DelayedFetch(delayMs: Long,
         }
     }
 
-    // Case D
+    // Case D 积攒的字节数达到拉取最小字节数
     if (accumulatedSize >= fetchMetadata.fetchMinBytes)
       forceComplete()
     else

@@ -35,6 +35,7 @@ import org.apache.kafka.common.requests.{MetadataResponse, PartitionState, Updat
 /**
  *  A cache for the state (e.g., current leader) of each partition. This cache is updated through
  *  UpdateMetadataRequest from the controller. Every broker maintains the same cache, asynchronously.
+ *  每个分区的状态（例如，当前引线）的缓存。此缓存通过控制器的UpdateMetadataRequest更新。每个代理都异步维护相同的缓存。
  */
 private[server] class MetadataCache(brokerId: Int) extends Logging {
   private val stateChangeLogger = KafkaController.stateChangeLogger
@@ -61,6 +62,12 @@ private[server] class MetadataCache(brokerId: Int) extends Logging {
     result
   }
 
+  /**
+   * 获取Broker的ip端口
+   * @param brokerId
+   * @param protocol
+   * @return
+   */
   private def getAliveEndpoint(brokerId: Int, protocol: SecurityProtocol): Option[Node] =
     aliveNodes.get(brokerId).map { nodeMap =>
       nodeMap.getOrElse(protocol,
@@ -68,15 +75,26 @@ private[server] class MetadataCache(brokerId: Int) extends Logging {
     }
 
   // errorUnavailableEndpoints exists to support v0 MetadataResponses
+
+  /**
+   * 获取分组元数据
+   * @param topic
+   * @param protocol
+   * @param errorUnavailableEndpoints
+   * @return
+   */
   private def getPartitionMetadata(topic: String, protocol: SecurityProtocol, errorUnavailableEndpoints: Boolean): Option[Iterable[MetadataResponse.PartitionMetadata]] = {
     cache.get(topic).map { partitions =>
       partitions.map { case (partitionId, partitionState) =>
+        //主题分区
         val topicPartition = TopicAndPartition(topic, partitionId)
-
+        //Leader副本和ISR列表
         val leaderAndIsr = partitionState.leaderIsrAndControllerEpoch.leaderAndIsr
+        //获取Leader副本的Broker的IP 端口
         val maybeLeader = getAliveEndpoint(leaderAndIsr.leader, protocol)
-
+        //AR列表
         val replicas = partitionState.allReplicas
+        //获取副本端点IP D端口
         val replicaInfo = getEndpoints(replicas, protocol, errorUnavailableEndpoints)
 
         maybeLeader match {
@@ -87,14 +105,16 @@ private[server] class MetadataCache(brokerId: Int) extends Logging {
 
           case Some(leader) =>
             val isr = leaderAndIsr.isr
+            //获取ISR列表中的副本端点 IP 端口
             val isrInfo = getEndpoints(isr, protocol, errorUnavailableEndpoints)
-
+            //不是所有副本都在线
             if (replicaInfo.size < replicas.size) {
               debug(s"Error while fetching metadata for $topicPartition: replica information not available for " +
                 s"following brokers ${replicas.filterNot(replicaInfo.map(_.id).contains).mkString(",")}")
 
               new MetadataResponse.PartitionMetadata(Errors.REPLICA_NOT_AVAILABLE, partitionId, leader,
                 replicaInfo.asJava, isrInfo.asJava)
+            //不是ISR列表中所有副本都在线
             } else if (isrInfo.size < isr.size) {
               debug(s"Error while fetching metadata for $topicPartition: in sync replica information not available for " +
                 s"following brokers ${isr.filterNot(isrInfo.map(_.id).contains).mkString(",")}")
@@ -110,6 +130,14 @@ private[server] class MetadataCache(brokerId: Int) extends Logging {
   }
 
   // errorUnavailableEndpoints exists to support v0 MetadataResponses
+
+  /**
+   * 获取主题下所有分区的元数据
+   * @param topics 主题
+   * @param protocol 协议
+   * @param errorUnavailableEndpoints
+   * @return
+   */
   def getTopicMetadata(topics: Set[String], protocol: SecurityProtocol, errorUnavailableEndpoints: Boolean = false): Seq[MetadataResponse.TopicMetadata] = {
     inReadLock(partitionMetadataLock) {
       topics.toSeq.flatMap { topic =>

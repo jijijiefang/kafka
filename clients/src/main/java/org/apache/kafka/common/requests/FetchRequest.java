@@ -26,6 +26,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 消息拉取请求
+ */
 public class FetchRequest extends AbstractRequest {
 
     //消费者的replicaId设置为-1
@@ -36,11 +39,11 @@ public class FetchRequest extends AbstractRequest {
     private static final String MIN_BYTES_KEY_NAME = "min_bytes";
     private static final String TOPICS_KEY_NAME = "topics";
 
-    // topic level field names
+    // topic level field names 主题级别字段
     private static final String TOPIC_KEY_NAME = "topic";
     private static final String PARTITIONS_KEY_NAME = "partitions";
 
-    // partition level field names
+    // partition level field names 分区级别字段
     private static final String PARTITION_KEY_NAME = "partition";
     private static final String FETCH_OFFSET_KEY_NAME = "fetch_offset";
     private static final String MAX_BYTES_KEY_NAME = "max_bytes";

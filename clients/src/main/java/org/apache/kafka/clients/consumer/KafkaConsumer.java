@@ -986,7 +986,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
             coordinator.ensurePartitionAssignment();
 
         // fetch positions if we have partitions we're subscribed to that we
-        // don't know the offset for
+        // don't know the offset for 获取位置，如果我们订阅了不知道偏移量的分区
         if (!subscriptions.hasAllFetchPositions())
             //将获取位置设置为提交位置（如果有）或使用用户配置的偏移重置策略重置它
             updateFetchPositions(this.subscriptions.missingFetchPositions());

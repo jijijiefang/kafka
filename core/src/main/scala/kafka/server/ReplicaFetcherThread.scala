@@ -340,6 +340,10 @@ class ReplicaFetcherThread(name: String,
 
 object ReplicaFetcherThread {
 
+  /**
+   * 通过FetchRequest.java创建
+   * @param underlying
+   */
   private[server] class FetchRequest(val underlying: JFetchRequest) extends AbstractFetcherThread.FetchRequest {
     def isEmpty: Boolean = underlying.fetchData.isEmpty
     def offset(topicAndPartition: TopicAndPartition): Long =

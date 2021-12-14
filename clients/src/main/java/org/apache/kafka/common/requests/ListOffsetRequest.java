@@ -34,8 +34,9 @@ import java.util.Map;
  * 列表偏移请求
  */
 public class ListOffsetRequest extends AbstractRequest {
-
+    //最早时间戳
     public static final long EARLIEST_TIMESTAMP = -2L;
+    //最晚时间戳
     public static final long LATEST_TIMESTAMP = -1L;
 
     public static final int CONSUMER_REPLICA_ID = -1;
@@ -45,11 +46,11 @@ public class ListOffsetRequest extends AbstractRequest {
     private static final String REPLICA_ID_KEY_NAME = "replica_id";
     private static final String TOPICS_KEY_NAME = "topics";
 
-    // topic level field names
+    // topic level field names 主题级别字段
     private static final String TOPIC_KEY_NAME = "topic";
     private static final String PARTITIONS_KEY_NAME = "partitions";
 
-    // partition level field names
+    // partition level field names 分区级别字段
     private static final String PARTITION_KEY_NAME = "partition";
     private static final String TIMESTAMP_KEY_NAME = "timestamp";
     private static final String MAX_NUM_OFFSETS_KEY_NAME = "max_num_offsets";
@@ -57,8 +58,13 @@ public class ListOffsetRequest extends AbstractRequest {
     private final int replicaId;
     private final Map<TopicPartition, PartitionData> offsetData;
 
+    /**
+     * 分区数据
+     */
     public static final class PartitionData {
+        //时间戳
         public final long timestamp;
+        //最多获取多少个偏移量
         public final int maxNumOffsets;
 
         public PartitionData(long timestamp, int maxNumOffsets) {
@@ -71,12 +77,18 @@ public class ListOffsetRequest extends AbstractRequest {
         this(CONSUMER_REPLICA_ID, offsetData);
     }
 
+    /**
+     * 组装请求
+     * @param replicaId 副本ID
+     * @param offsetData 主题分区数据
+     */
     public ListOffsetRequest(int replicaId, Map<TopicPartition, PartitionData> offsetData) {
         super(new Struct(CURRENT_SCHEMA));
         Map<String, Map<Integer, PartitionData>> topicsData = CollectionUtils.groupDataByTopic(offsetData);
 
         struct.set(REPLICA_ID_KEY_NAME, replicaId);
         List<Struct> topicArray = new ArrayList<Struct>();
+        //双层循环嵌套
         for (Map.Entry<String, Map<Integer, PartitionData>> topicEntry: topicsData.entrySet()) {
             Struct topicData = struct.instance(TOPICS_KEY_NAME);
             topicData.set(TOPIC_KEY_NAME, topicEntry.getKey());
