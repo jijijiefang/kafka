@@ -123,7 +123,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime, threadNamePr
 
   var dynamicConfigHandlers: Map[String, ConfigHandler] = null
   var dynamicConfigManager: DynamicConfigManager = null
-
+  //组协调器
   var groupCoordinator: GroupCoordinator = null
   //控制器
   var kafkaController: KafkaController = null

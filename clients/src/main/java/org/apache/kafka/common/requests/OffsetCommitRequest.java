@@ -28,6 +28,7 @@ import java.util.Map;
 
 /**
  * This wrapper supports both v0 and v1 of OffsetCommitRequest.
+ * 此包装器支持OffsetCommitRequest的v0和v1
  */
 public class OffsetCommitRequest extends AbstractRequest {
     
@@ -50,13 +51,13 @@ public class OffsetCommitRequest extends AbstractRequest {
     @Deprecated
     private static final String TIMESTAMP_KEY_NAME = "timestamp";         // for v0, v1
 
-    // default values for the current version
+    // default values for the current version 当前版本默认值
     public static final int DEFAULT_GENERATION_ID = -1;
     public static final String DEFAULT_MEMBER_ID = "";
     public static final long DEFAULT_RETENTION_TIME = -1L;
 
     // default values for old versions,
-    // will be removed after these versions are deprecated
+    // will be removed after these versions are deprecated 旧版本的默认值将在不推荐使用这些版本后删除
     @Deprecated
     public static final long DEFAULT_TIMESTAMP = -1L;            // for V0, V1
 
@@ -87,6 +88,7 @@ public class OffsetCommitRequest extends AbstractRequest {
 
     /**
      * Constructor for version 0.
+     * 版本0的构造函数
      * @param groupId
      * @param offsetData
      */
@@ -104,6 +106,7 @@ public class OffsetCommitRequest extends AbstractRequest {
 
     /**
      * Constructor for version 1.
+     * 版本1的构造函数
      * @param groupId
      * @param generationId
      * @param memberId
@@ -125,6 +128,7 @@ public class OffsetCommitRequest extends AbstractRequest {
 
     /**
      * Constructor for version 2.
+     * 版本2的构造函数
      * @param groupId
      * @param generationId
      * @param memberId
@@ -145,6 +149,11 @@ public class OffsetCommitRequest extends AbstractRequest {
         this.offsetData = offsetData;
     }
 
+    /**
+     * 初始化公共字段
+     * @param groupId
+     * @param offsetData
+     */
     private void initCommonFields(String groupId, Map<TopicPartition, PartitionData> offsetData) {
         Map<String, Map<Integer, PartitionData>> topicsData = CollectionUtils.groupDataByTopic(offsetData);
 

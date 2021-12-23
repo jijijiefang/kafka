@@ -251,7 +251,7 @@ class KafkaApis(val requestChannel: RequestChannel,
     val header = request.header
     val offsetCommitRequest = request.body.asInstanceOf[OffsetCommitRequest]
 
-    // reject the request if not authorized to the group
+    // reject the request if not authorized to the group 如果未向该组授权，则拒绝该请求
     if (!authorize(request.session, Read, new Resource(Group, offsetCommitRequest.groupId))) {
       val errorCode = new JShort(Errors.GROUP_AUTHORIZATION_FAILED.code)
       val results = offsetCommitRequest.offsetData.keySet.asScala.map { topicPartition =>
@@ -321,12 +321,12 @@ class KafkaApis(val requestChannel: RequestChannel,
           else
             offsetCommitRequest.retentionTime
 
-        // commit timestamp is always set to now.
-        // "default" expiration timestamp is now + retention (and retention may be overridden if v2)
-        // expire timestamp is computed differently for v1 and v2.
-        //   - If v1 and no explicit commit timestamp is provided we use default expiration timestamp.
-        //   - If v1 and explicit commit timestamp is provided we calculate retention from that explicit commit timestamp
-        //   - If v2 we use the default expiration timestamp
+        // commit timestamp is always set to now. 提交时间戳始终设置为“现在”
+        // "default" expiration timestamp is now + retention (and retention may be overridden if v2) “默认”过期时间戳现在是+保留（如果v2，保留可能会被覆盖）
+        // expire timestamp is computed differently for v1 and v2. 对于v1和v2，过期时间戳的计算方式不同。
+        //   - If v1 and no explicit commit timestamp is provided we use default expiration timestamp. 如果v1没有提供明确的提交时间戳，我们将使用默认的到期时间戳。
+        //   - If v1 and explicit commit timestamp is provided we calculate retention from that explicit commit timestamp 如果提供了v1和显式提交时间戳，我们将根据该显式提交时间戳计算保留时间
+        //   - If v2 we use the default expiration timestamp 如果提供了v2，我们将使用默认的到期时间戳
         val currentTimestamp = SystemTime.milliseconds
         val defaultExpireTimestamp = offsetRetention + currentTimestamp
         val partitionData = authorizedRequestInfo.mapValues { partitionData =>

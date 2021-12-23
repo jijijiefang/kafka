@@ -43,9 +43,10 @@ case class JoinGroupResult(members: Map[String, Array[Byte]],
 
 /**
  * GroupCoordinator handles general group membership and offset management.
- *
+ * GroupCoordinator处理常规组成员资格和偏移管理。
  * Each Kafka server instantiates a coordinator which is responsible for a set of
  * groups. Groups are assigned to coordinators based on their group names.
+ * 每个Kafka服务器实例化一个协调器，负责一组。根据组名将组分配给协调员
  */
 class GroupCoordinator(val brokerId: Int,
                        val groupConfig: GroupConfig,
@@ -405,22 +406,27 @@ class GroupCoordinator(val brokerId: Int,
           delayedOffsetStore = Some(groupManager.prepareStoreOffsets(groupId, memberId, generationId, offsetMetadata,
             responseCallback))
         else
-          // the group has failed over to this coordinator (which will be handled in KAFKA-2017),
-          // or this is a request coming from an older generation. either way, reject the commit
+          // the group has failed over to this coordinator (which will be handled in KAFKA-2017),该组已故障转移到此协调员
+          // or this is a request coming from an older generation. either way, reject the commit 或者这是老一辈人的请求。无论哪种方式，都要拒绝提交
           responseCallback(offsetMetadata.mapValues(_ => Errors.ILLEGAL_GENERATION.code))
       } else {
         group synchronized {
           if (group.is(Dead)) {
+            //失效状态，不在是组成员
             responseCallback(offsetMetadata.mapValues(_ => Errors.UNKNOWN_MEMBER_ID.code))
           } else if (group.is(AwaitingSync)) {
+            //正在进行重平衡
             responseCallback(offsetMetadata.mapValues(_ => Errors.REBALANCE_IN_PROGRESS.code))
           } else if (!group.has(memberId)) {
+            //当前组不包含此成员
             responseCallback(offsetMetadata.mapValues(_ => Errors.UNKNOWN_MEMBER_ID.code))
           } else if (generationId != group.generationId) {
+            //非法的年代
             responseCallback(offsetMetadata.mapValues(_ => Errors.ILLEGAL_GENERATION.code))
           } else {
             val member = group.get(memberId)
             completeAndScheduleNextHeartbeatExpiration(group, member)
+            //
             delayedOffsetStore = Some(groupManager.prepareStoreOffsets(groupId, memberId, generationId,
               offsetMetadata, responseCallback))
           }
@@ -566,14 +572,15 @@ class GroupCoordinator(val brokerId: Int,
 
   /**
    * Complete existing DelayedHeartbeats for the given member and schedule the next one
+   * 完成给定成员的现有 DelayedHeartbeats 并安排下一个
    */
   private def completeAndScheduleNextHeartbeatExpiration(group: GroupMetadata, member: MemberMetadata) {
-    // complete current heartbeat expectation
+    // complete current heartbeat expectation 完成当前心跳期望值
     member.latestHeartbeat = time.milliseconds()
     val memberKey = MemberKey(member.groupId, member.memberId)
     heartbeatPurgatory.checkAndComplete(memberKey)
 
-    // reschedule the next heartbeat expiration deadline
+    // reschedule the next heartbeat expiration deadline 重新安排下一个心跳过期截止日期
     val newHeartbeatDeadline = member.latestHeartbeat + member.sessionTimeoutMs
     val delayedHeartbeat = new DelayedHeartbeat(this, group, member, newHeartbeatDeadline, member.sessionTimeoutMs)
     heartbeatPurgatory.tryCompleteElseWatch(delayedHeartbeat, Seq(memberKey))
