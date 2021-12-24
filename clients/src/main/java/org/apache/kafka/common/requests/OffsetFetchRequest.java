@@ -28,6 +28,7 @@ import java.util.Map;
 
 /**
  * This wrapper supports both v0 and v1 of OffsetFetchRequest.
+ * 此包装器支持OffsetFetchRequest的v0和v1。
  */
 public class OffsetFetchRequest extends AbstractRequest {
     

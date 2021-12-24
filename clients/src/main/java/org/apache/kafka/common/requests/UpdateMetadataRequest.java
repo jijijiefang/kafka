@@ -31,6 +31,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * 更新元数据请求
+ */
 public class UpdateMetadataRequest extends AbstractRequest {
 
     public static final class Broker {
@@ -92,7 +95,7 @@ public class UpdateMetadataRequest extends AbstractRequest {
     private final Set<Broker> liveBrokers;
 
     /**
-     * Constructor for version 0.
+     * Constructor for version 0.版本0构造器
      */
     @Deprecated
     public UpdateMetadataRequest(int controllerId, int controllerEpoch, Set<Node> liveBrokers,
@@ -112,7 +115,7 @@ public class UpdateMetadataRequest extends AbstractRequest {
     }
 
     /**
-     * Constructor for version 2.
+     * Constructor for version 2.版本2构造器
      */
     public UpdateMetadataRequest(int controllerId, int controllerEpoch, Map<TopicPartition,
             PartitionState> partitionStates, Set<Broker> liveBrokers) {

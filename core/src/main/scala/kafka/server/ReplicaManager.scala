@@ -655,6 +655,7 @@ class ReplicaManager(val config: KafkaConfig,
    */
   def maybeUpdateMetadataCache(correlationId: Int, updateMetadataRequest: UpdateMetadataRequest, metadataCache: MetadataCache) {
     replicaStateChangeLock synchronized {
+      //如果请求控制器纪元小于当前控制器纪元
       if(updateMetadataRequest.controllerEpoch < controllerEpoch) {
         val stateControllerEpochErrorMessage = ("Broker %d received update metadata request with correlation id %d from an " +
           "old controller %d with epoch %d. Latest known controller epoch is %d").format(localBrokerId,
@@ -663,7 +664,9 @@ class ReplicaManager(val config: KafkaConfig,
         stateChangeLogger.warn(stateControllerEpochErrorMessage)
         throw new ControllerMovedException(stateControllerEpochErrorMessage)
       } else {
+        //更新缓存
         metadataCache.updateCache(correlationId, updateMetadataRequest)
+        //更新控制器纪元
         controllerEpoch = updateMetadataRequest.controllerEpoch
       }
     }

@@ -337,19 +337,22 @@ class GroupMetadataManager(val brokerId: Int,
   /**
    * The most important guarantee that this API provides is that it should never return a stale offset. i.e., it either
    * returns the current offset or it begins to sync the cache from the log (and returns an error code).
+   * 此API提供的最重要的保证是它永远不会返回过时的偏移量。i、 例如，它要么返回当前偏移量，要么开始从日志同步缓存（并返回错误代码）。
    */
   def getOffsets(group: String, topicPartitions: Seq[TopicPartition]): Map[TopicPartition, OffsetFetchResponse.PartitionData] = {
     trace("Getting offsets %s for group %s.".format(topicPartitions, group))
 
     if (isGroupLocal(group)) {
+      //如果请求中的主题分区集合为空，获取本地偏移量缓存所有数据
       if (topicPartitions.isEmpty) {
-        // Return offsets for all partitions owned by this consumer group. (this only applies to consumers that commit offsets to Kafka.)
+        // Return offsets for all partitions owned by this consumer group. (this only applies to consumers that commit offsets to Kafka.) 返回此使用者组拥有的所有分区的偏移量。（这仅适用于向Kafka提交偏移的使用者。）
         offsetsCache.filter(_._1.group == group).map { case(groupTopicPartition, offsetAndMetadata) =>
           (groupTopicPartition.topicPartition, new OffsetFetchResponse.PartitionData(offsetAndMetadata.offset, offsetAndMetadata.metadata, Errors.NONE.code))
         }.toMap
       } else {
         topicPartitions.map { topicPartition =>
           val groupTopicPartition = GroupTopicPartition(group, topicPartition)
+          //为每一个主题分区获取偏移量
           (groupTopicPartition.topicPartition, getOffset(groupTopicPartition))
         }.toMap
       }
@@ -532,7 +535,7 @@ class GroupMetadataManager(val brokerId: Int,
 
   /**
    * Fetch the current offset for the given group/topic/partition from the underlying offsets storage.
-   *
+   * 从基础偏移量存储中获取给定组/主题/分区的当前偏移量
    * @param key The requested group-topic-partition
    * @return If the key is present, return the offset and metadata; otherwise return None
    */

@@ -31,7 +31,7 @@ public class MetadataRequest extends AbstractRequest {
 
     private static final Schema CURRENT_SCHEMA = ProtoUtils.currentRequestSchema(ApiKeys.METADATA.id);
     private static final String TOPICS_KEY_NAME = "topics";
-
+    //主题列表为空则是查询所有的主题元数据
     private static final MetadataRequest ALL_TOPICS_REQUEST = new MetadataRequest((List<String>) null); // Unusual cast to work around constructor ambiguity
 
     private final List<String> topics;
@@ -41,8 +41,8 @@ public class MetadataRequest extends AbstractRequest {
     }
 
     /**
-     * In v0 null is not allowed and and empty list indicates requesting all topics.
-     * In v1 null indicates requesting all topics, and an empty list indicates requesting no topics.
+     * In v0 null is not allowed and and empty list indicates requesting all topics.在v0中，不允许null，空列表表示请求所有主题。
+     * In v1 null indicates requesting all topics, and an empty list indicates requesting no topics. 在v1中，null表示请求所有主题，空列表表示不请求任何主题。
      */
     public MetadataRequest(List<String> topics) {
         super(new Struct(CURRENT_SCHEMA));

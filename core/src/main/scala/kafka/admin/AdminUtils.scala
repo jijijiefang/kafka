@@ -149,6 +149,15 @@ object AdminUtils extends Logging {
     ret
   }
 
+  /**
+   *
+   * @param nPartitions
+   * @param replicationFactor
+   * @param brokerMetadatas
+   * @param fixedStartIndex
+   * @param startPartitionId
+   * @return
+   */
   private def assignReplicasToBrokersRackAware(nPartitions: Int,
                                                replicationFactor: Int,
                                                brokerMetadatas: Seq[BrokerMetadata],
@@ -400,6 +409,7 @@ object AdminUtils extends Logging {
                   topicConfig: Properties = new Properties,
                   rackAwareMode: RackAwareMode = RackAwareMode.Enforced) {
     val brokerMetadatas = getBrokerMetadatas(zkUtils, rackAwareMode)
+    //副本分配
     val replicaAssignment = AdminUtils.assignReplicasToBrokers(brokerMetadatas, partitions, replicationFactor)
     AdminUtils.createOrUpdateTopicPartitionAssignmentPathInZK(zkUtils, topic, replicaAssignment, topicConfig)
   }

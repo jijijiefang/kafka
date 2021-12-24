@@ -784,6 +784,7 @@ class KafkaApis(val requestChannel: RequestChannel,
         else
           metadataRequest.topics.asScala.toSet
       } else {
+        //其他版本
         if (metadataRequest.isAllTopics)
           metadataCache.getAllTopics()
         else
@@ -809,17 +810,17 @@ class KafkaApis(val requestChannel: RequestChannel,
       new MetadataResponse.TopicMetadata(Errors.TOPIC_AUTHORIZATION_FAILED, topic, common.Topic.isInternal(topic),
         java.util.Collections.emptyList()))
 
-    // In version 0, we returned an error when brokers with replicas were unavailable,
-    // while in higher versions we simply don't include the broker in the returned broker list
+    // In version 0, we returned an error when brokers with replicas were unavailable,在版本0中，当具有副本的代理不可用时，我们返回了一个错误，
+    // while in higher versions we simply don't include the broker in the returned broker list 而在更高版本中，我们只是在返回的代理列表中不包含代理
     val errorUnavailableEndpoints = requestVersion == 0 //0版本的就是true
     val topicMetadata =
       if (authorizedTopics.isEmpty)
         Seq.empty[MetadataResponse.TopicMetadata]
       else
-        getTopicMetadata(authorizedTopics, request.securityProtocol, errorUnavailableEndpoints)
+        getTopicMetadata(authorizedTopics, request.securityProtocol, errorUnavailableEndpoints)//获取经过授权的主题的元数据
 
     val completeTopicMetadata = topicMetadata ++ unauthorizedTopicMetadata
-
+    //Broker信息
     val brokers = metadataCache.getAliveBrokers
 
     trace("Sending topic metadata %s and brokers %s for correlation id %d to client %s".format(completeTopicMetadata.mkString(","),
@@ -827,17 +828,18 @@ class KafkaApis(val requestChannel: RequestChannel,
 
     val responseHeader = new ResponseHeader(request.header.correlationId)
 
+    //组装元数据查询响应
     val responseBody = new MetadataResponse(
-      brokers.map(_.getNode(request.securityProtocol)).asJava,
-      metadataCache.getControllerId.getOrElse(MetadataResponse.NO_CONTROLLER_ID),
-      completeTopicMetadata.asJava,
-      requestVersion
+      brokers.map(_.getNode(request.securityProtocol)).asJava,//broker信息
+      metadataCache.getControllerId.getOrElse(MetadataResponse.NO_CONTROLLER_ID), //控制器信息
+      completeTopicMetadata.asJava,//主题元数据信息
+      requestVersion//请求版本
     )
     requestChannel.sendResponse(new RequestChannel.Response(request, new ResponseSend(request.connectionId, responseHeader, responseBody)))
   }
 
   /*
-   * Handle an offset fetch request
+   * Handle an offset fetch request 处理偏移量提取请求
    */
   def handleOffsetFetchRequest(request: RequestChannel.Request) {
     val header = request.header
@@ -845,7 +847,7 @@ class KafkaApis(val requestChannel: RequestChannel,
 
     val responseHeader = new ResponseHeader(header.correlationId)
     val offsetFetchResponse =
-    // reject the request if not authorized to the group
+    // reject the request if not authorized to the group 如果未向该组授权，则拒绝该请求
     if (!authorize(request.session, Read, new Resource(Group, offsetFetchRequest.groupId))) {
       val unauthorizedGroupResponse = new OffsetFetchResponse.PartitionData(OffsetFetchResponse.INVALID_OFFSET, "", Errors.GROUP_AUTHORIZATION_FAILED.code)
       val results = offsetFetchRequest.partitions.asScala.map { topicPartition => (topicPartition, unauthorizedGroupResponse)}.toMap
@@ -859,7 +861,7 @@ class KafkaApis(val requestChannel: RequestChannel,
       val unknownTopicPartitionResponse = new OffsetFetchResponse.PartitionData(OffsetFetchResponse.INVALID_OFFSET, "", Errors.UNKNOWN_TOPIC_OR_PARTITION.code)
 
       if (header.apiVersion == 0) {
-        // version 0 reads offsets from ZK
+        // version 0 reads offsets from ZK 版本0，从ZK读取偏移量
         val responseInfo = authorizedTopicPartitions.map { topicPartition =>
           val topicDirs = new ZKGroupTopicDirs(offsetFetchRequest.groupId, topicPartition.topic)
           try {
@@ -882,10 +884,10 @@ class KafkaApis(val requestChannel: RequestChannel,
         }.toMap
         new OffsetFetchResponse((responseInfo ++ unauthorizedStatus).asJava)
       } else {
-        // version 1 reads offsets from Kafka;
+        // version 1 reads offsets from Kafka; 版本1，从Kafka读取偏移量
         val offsets = coordinator.handleFetchOffsets(offsetFetchRequest.groupId, authorizedTopicPartitions).toMap
 
-        // Note that we do not need to filter the partitions in the
+        // Note that we do not need to filter the partitions in the 注意，我们不需要过滤元数据缓存中的分区，因为主题分区将通过偏移缓存在协调器的偏移管理器中进行过滤
         // metadata cache as the topic partitions will be filtered
         // in coordinator's offset manager through the offset cache
         new OffsetFetchResponse((offsets ++ unauthorizedStatus).asJava)

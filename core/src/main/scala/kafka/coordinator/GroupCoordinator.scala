@@ -438,6 +438,12 @@ class GroupCoordinator(val brokerId: Int,
     delayedOffsetStore.foreach(groupManager.store)
   }
 
+  /**
+   * 处理获取偏移量
+   * @param groupId
+   * @param partitions
+   * @return
+   */
   def handleFetchOffsets(groupId: String,
                          partitions: Seq[TopicPartition]): Map[TopicPartition, OffsetFetchResponse.PartitionData] = {
     if (!isActive.get) {
@@ -450,7 +456,7 @@ class GroupCoordinator(val brokerId: Int,
       partitions.map { case topicPartition =>
         (topicPartition, new OffsetFetchResponse.PartitionData(OffsetFetchResponse.INVALID_OFFSET, "", Errors.GROUP_LOAD_IN_PROGRESS.code))}.toMap
     } else {
-      // return offsets blindly regardless the current group state since the group may be using
+      // return offsets blindly regardless the current group state since the group may be using 不管当前组状态如何，都会盲目返回偏移量，因为该组可能正在使用Kafka提交存储，而不进行自动组管理
       // Kafka commit storage without automatic group management
       groupManager.getOffsets(groupId, partitions)
     }

@@ -172,6 +172,12 @@ private[server] class MetadataCache(brokerId: Int) extends Logging {
     }
   }
 
+  /**
+   * 新增或修改分区信息
+   * @param topic
+   * @param partitionId
+   * @param stateInfo
+   */
   private def addOrUpdatePartitionInfo(topic: String,
                                        partitionId: Int,
                                        stateInfo: PartitionStateInfo) {
@@ -189,12 +195,19 @@ private[server] class MetadataCache(brokerId: Int) extends Logging {
 
   def getControllerId: Option[Int] = controllerId
 
+  /**
+   * 更新缓存
+   * @param correlationId
+   * @param updateMetadataRequest
+   */
   def updateCache(correlationId: Int, updateMetadataRequest: UpdateMetadataRequest) {
     inWriteLock(partitionMetadataLock) {
+      //更新控制器id
       controllerId = updateMetadataRequest.controllerId match {
           case id if id < 0 => None
           case id => Some(id)
         }
+      //清空节点和Broker信息，重新组装
       aliveNodes.clear()
       aliveBrokers.clear()
       updateMetadataRequest.liveBrokers.asScala.foreach { broker =>
@@ -209,14 +222,19 @@ private[server] class MetadataCache(brokerId: Int) extends Logging {
       }
 
       updateMetadataRequest.partitionStates.asScala.foreach { case (tp, info) =>
+        //控制器id
         val controllerId = updateMetadataRequest.controllerId
+        //控制器纪元
         val controllerEpoch = updateMetadataRequest.controllerEpoch
         if (info.leader == LeaderAndIsr.LeaderDuringDelete) {
+          //Leader删除期间
           removePartitionInfo(tp.topic, tp.partition)
           stateChangeLogger.trace(s"Broker $brokerId deleted partition $tp from metadata cache in response to UpdateMetadata " +
             s"request sent by controller $controllerId epoch $controllerEpoch with correlation id $correlationId")
         } else {
+          //更新Leader和ISR信息
           val partitionInfo = partitionStateToPartitionStateInfo(info)
+          //新增或修改分区信息
           addOrUpdatePartitionInfo(tp.topic, tp.partition, partitionInfo)
           stateChangeLogger.trace(s"Broker $brokerId cached leader info $partitionInfo for partition $tp in response to " +
             s"UpdateMetadata request sent by controller $controllerId epoch $controllerEpoch with correlation id $correlationId")
@@ -225,6 +243,11 @@ private[server] class MetadataCache(brokerId: Int) extends Logging {
     }
   }
 
+  /**
+   * 更新Leader和ISR信息
+   * @param partitionState
+   * @return
+   */
   private def partitionStateToPartitionStateInfo(partitionState: PartitionState): PartitionStateInfo = {
     val leaderAndIsr = LeaderAndIsr(partitionState.leader, partitionState.leaderEpoch, partitionState.isr.asScala.map(_.toInt).toList, partitionState.zkVersion)
     val leaderInfo = LeaderIsrAndControllerEpoch(leaderAndIsr, partitionState.controllerEpoch)
