@@ -187,7 +187,7 @@ public abstract class AbstractCoordinator implements Closeable {
                 else
                     throw future.exception();
             } else if (coordinator != null && client.connectionFailed(coordinator)) {
-                // we found the coordinator, but the connection has failed, so mark
+                // we found the coordinator, but the connection has failed, so mark 我们找到了协调器，但连接已失败，因此请将其标记为死，并在重试发现之前退出
                 // it dead and backoff before retrying discovery
                 coordinatorDead();
                 time.sleep(retryBackoffMs);
@@ -195,6 +195,10 @@ public abstract class AbstractCoordinator implements Closeable {
         }
     }
 
+    /**
+     * 查找协调器
+     * @return
+     */
     protected RequestFuture<Void> lookupCoordinator() {
         if (findCoordinatorFuture == null) {
             findCoordinatorFuture = sendGroupCoordinatorRequest();
@@ -237,7 +241,7 @@ public abstract class AbstractCoordinator implements Closeable {
             onJoinPrepare(generation, memberId);
             needsJoinPrepare = false;
         }
-
+        //如果需要重新加入
         while (needRejoin()) {
             ensureCoordinatorReady();
 
@@ -489,18 +493,19 @@ public abstract class AbstractCoordinator implements Closeable {
     /**
      * Discover the current coordinator for the group. Sends a GroupMetadata request to
      * one of the brokers. The returned future should be polled to get the result of the request.
-     * @return A request future which indicates the completion of the metadata request
+     * 查找组的当前协调员。向其中一个代理发送GroupMetadata请求。应轮询返回的future以获得请求的结果。
+     * @return A request future which indicates the completion of the metadata request 返回： 指示元数据请求完成的未来请求
      */
     private RequestFuture<Void> sendGroupCoordinatorRequest() {
-        // initiate the group metadata request
-        // find a node to ask about the coordinator
+        // initiate the group metadata request 初始化组元数据请求
+        // find a node to ask about the coordinator 查找节点以询问有关协调器的信息
         Node node = this.client.leastLoadedNode();
         if (node == null) {
             // TODO: If there are no brokers left, perhaps we should use the bootstrap set
             // from configuration?
             return RequestFuture.noBrokersAvailable();
         } else {
-            // create a group  metadata request
+            // create a group  metadata request 创建组元数据请求
             log.debug("Sending coordinator request for group {} to broker {}", groupId, node);
             GroupCoordinatorRequest metadataRequest = new GroupCoordinatorRequest(this.groupId);
             return client.send(node, ApiKeys.GROUP_COORDINATOR, metadataRequest)
@@ -513,6 +518,11 @@ public abstract class AbstractCoordinator implements Closeable {
         }
     }
 
+    /**
+     * 处理组元数据响应
+     * @param resp
+     * @param future
+     */
     private void handleGroupMetadataResponse(ClientResponse resp, RequestFuture<Void> future) {
         log.debug("Received group coordinator response {}", resp);
 
@@ -531,10 +541,10 @@ public abstract class AbstractCoordinator implements Closeable {
                         groupCoordinatorResponse.node().port());
 
                 log.info("Discovered coordinator {} for group {}.", coordinator, groupId);
-
+                //尝试连接协调器
                 client.tryConnect(coordinator);
 
-                // start sending heartbeats only if we have a valid generation
+                // start sending heartbeats only if we have a valid generation 如果当前是有效的纪元，开始发送心跳
                 if (generation > 0)
                     heartbeatTask.reset();
                 future.complete(null);

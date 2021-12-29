@@ -23,6 +23,9 @@ import kafka.utils.{Pool, CoreUtils, ZkUtils, Logging}
 
 import scala.collection.mutable
 
+/**
+ * 消费分区分配策略接口
+ */
 trait PartitionAssignor {
 
   /**
@@ -61,7 +64,7 @@ class AssignmentContext(group: String, val consumerId: String, excludeInternalTo
  * then proceeds to do a round-robin assignment from partition to consumer thread. If the subscriptions of all consumer
  * instances are identical, then the partitions will be uniformly distributed. (i.e., the partition ownership counts
  * will be within a delta of exactly one across all consumer threads.)
- *
+ * 消费分区分配策略为round-robin
  * (For simplicity of implementation) the assignor is allowed to assign a given topic-partition to any consumer instance
  * and thread-id within that instance. Therefore, round-robin assignment is allowed only if:
  * a) Every topic has the same number of streams within a consumer instance
@@ -127,6 +130,7 @@ class RoundRobinAssignor() extends PartitionAssignor with Logging {
  * and C2 with two streams each, and there are five available partitions (p0, p1, p2, p3, p4). So each consumer thread
  * will get at least one partition and the first consumer thread will get one extra partition. So the assignment will be:
  * p0 -> C1-0, p1 -> C1-0, p2 -> C1-1, p3 -> C2-0, p4 -> C2-1
+ * 消费分区策略为-范围分区
  */
 class RangeAssignor() extends PartitionAssignor with Logging {
 

@@ -168,7 +168,7 @@ private[coordinator] class GroupMetadata(val groupId: String, val protocolType: 
 
   // TODO: decide if ids should be predictable or random
   def generateMemberIdSuffix = UUID.randomUUID().toString
-
+  //稳定状态下或等待同步状态下可以重平衡
   def canRebalance = state == Stable || state == AwaitingSync
 
   def transitionTo(groupState: GroupState) {

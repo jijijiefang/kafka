@@ -22,6 +22,9 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 描述组请求
+ */
 public class DescribeGroupsRequest extends AbstractRequest {
     private static final Schema CURRENT_SCHEMA = ProtoUtils.currentRequestSchema(ApiKeys.DESCRIBE_GROUPS.id);
     private static final String GROUP_IDS_KEY_NAME = "group_ids";

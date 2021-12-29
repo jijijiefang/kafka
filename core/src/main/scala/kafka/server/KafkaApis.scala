@@ -898,6 +898,10 @@ class KafkaApis(val requestChannel: RequestChannel,
     requestChannel.sendResponse(new Response(request, new ResponseSend(request.connectionId, responseHeader, offsetFetchResponse)))
   }
 
+  /**
+   * 处理查询组协调器请求
+   * @param request 请求
+   */
   def handleGroupCoordinatorRequest(request: RequestChannel.Request) {
     val groupCoordinatorRequest = request.body.asInstanceOf[GroupCoordinatorRequest]
     val responseHeader = new ResponseHeader(request.header.correlationId)
@@ -906,14 +910,17 @@ class KafkaApis(val requestChannel: RequestChannel,
       val responseBody = new GroupCoordinatorResponse(Errors.GROUP_AUTHORIZATION_FAILED.code, Node.noNode)
       requestChannel.sendResponse(new RequestChannel.Response(request, new ResponseSend(request.connectionId, responseHeader, responseBody)))
     } else {
+      //根据groupId获取分区,对"__consumer_offsets"此主题的分区数取模
       val partition = coordinator.partitionFor(groupCoordinatorRequest.groupId)
 
-      // get metadata (and create the topic if necessary)
+      // get metadata (and create the topic if necessary) 获取元数据（必要时创建主题）
       val offsetsTopicMetadata = getOrCreateGroupMetadataTopic(request.securityProtocol)
 
       val responseBody = if (offsetsTopicMetadata.error != Errors.NONE) {
         new GroupCoordinatorResponse(Errors.GROUP_COORDINATOR_NOT_AVAILABLE.code, Node.noNode)
       } else {
+        //获取协调者，就是此分区副本的Leader所在的Broker节点,消费者groupId最终的分区分配方案及组内消费者所提交的消费位移信息都会发送给此分区leader副本所在的broker节点，
+        //让此broker节点既扮演GroupCoordinator的角色，又扮演保存分区分配方案和组内消费者位移的角色，这样可以省去很多不必要的中间轮转所带来的开销。
         val coordinatorEndpoint = offsetsTopicMetadata.partitionMetadata().asScala
           .find(_.partition == partition)
           .map(_.leader())
@@ -974,7 +981,7 @@ class KafkaApis(val requestChannel: RequestChannel,
     val joinGroupRequest = request.body.asInstanceOf[JoinGroupRequest]
     val responseHeader = new ResponseHeader(request.header.correlationId)
 
-    // the callback for sending a join-group response
+    // the callback for sending a join-group response 加入组响应回调
     def sendResponseCallback(joinResult: JoinGroupResult) {
       val members = joinResult.members map { case (memberId, metadataArray) => (memberId, ByteBuffer.wrap(metadataArray)) }
       val responseBody = new JoinGroupResponse(joinResult.errorCode, joinResult.generationId, joinResult.subProtocol,
@@ -995,7 +1002,7 @@ class KafkaApis(val requestChannel: RequestChannel,
         Map.empty[String, ByteBuffer])
       requestChannel.sendResponse(new RequestChannel.Response(request, new ResponseSend(request.connectionId, responseHeader, responseBody)))
     } else {
-      // let the coordinator to handle join-group
+      // let the coordinator to handle join-group 让协调器处理加入组
       val protocols = joinGroupRequest.groupProtocols().map(protocol =>
         (protocol.name, Utils.toArray(protocol.metadata))).toList
       coordinator.handleJoinGroup(
@@ -1051,7 +1058,7 @@ class KafkaApis(val requestChannel: RequestChannel,
       requestChannel.sendResponse(new Response(request, new ResponseSend(request.connectionId, respHeader, heartbeatResponse)))
     }
     else {
-      // let the coordinator to handle heartbeat
+      // let the coordinator to handle heartbeat 让协调器来处理心跳
       coordinator.handleHeartbeat(
         heartbeatRequest.groupId(),
         heartbeatRequest.memberId(),
@@ -1101,7 +1108,7 @@ class KafkaApis(val requestChannel: RequestChannel,
       val leaveGroupResponse = new LeaveGroupResponse(Errors.GROUP_AUTHORIZATION_FAILED.code)
       requestChannel.sendResponse(new Response(request, new ResponseSend(request.connectionId, respHeader, leaveGroupResponse)))
     } else {
-      // let the coordinator to handle leave-group
+      // let the coordinator to handle leave-group 让协调员来处理休假组
       coordinator.handleLeaveGroup(
         leaveGroupRequest.groupId(),
         leaveGroupRequest.memberId(),

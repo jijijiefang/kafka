@@ -97,6 +97,17 @@ class GroupCoordinator(val brokerId: Int,
     info("Shutdown complete.")
   }
 
+  /**
+   * 处理加入组
+   * @param groupId
+   * @param memberId
+   * @param clientId
+   * @param clientHost
+   * @param sessionTimeoutMs
+   * @param protocolType
+   * @param protocols
+   * @param responseCallback
+   */
   def handleJoinGroup(groupId: String,
                       memberId: String,
                       clientId: String,
@@ -117,7 +128,7 @@ class GroupCoordinator(val brokerId: Int,
                sessionTimeoutMs > groupConfig.groupMaxSessionTimeoutMs) {
       responseCallback(joinError(memberId, Errors.INVALID_SESSION_TIMEOUT.code))
     } else {
-      // only try to create the group if the group is not unknown AND
+      // only try to create the group if the group is not unknown AND 仅当组不未知且成员id未知时才尝试创建组，如果指定了成员但组不存在，则应拒绝请求
       // the member id is UNKNOWN, if member is specified but group does not
       // exist we should reject the request
       var group = groupManager.getGroup(groupId)
@@ -134,6 +145,17 @@ class GroupCoordinator(val brokerId: Int,
     }
   }
 
+  /**
+   * 操作加入组
+   * @param group
+   * @param memberId
+   * @param clientId
+   * @param clientHost
+   * @param sessionTimeoutMs
+   * @param protocolType
+   * @param protocols
+   * @param responseCallback
+   */
   private def doJoinGroup(group: GroupMetadata,
                           memberId: String,
                           clientId: String,
@@ -144,21 +166,22 @@ class GroupCoordinator(val brokerId: Int,
                           responseCallback: JoinCallback) {
     group synchronized {
       if (group.protocolType != protocolType || !group.supportsProtocols(protocols.map(_._1).toSet)) {
-        // if the new member does not support the group protocol, reject it
+        // if the new member does not support the group protocol, reject it 如果新的成员不只是组的协议拒绝掉
         responseCallback(joinError(memberId, Errors.INCONSISTENT_GROUP_PROTOCOL.code))
       } else if (memberId != JoinGroupRequest.UNKNOWN_MEMBER_ID && !group.has(memberId)) {
         // if the member trying to register with a un-recognized id, send the response to let
-        // it reset its member id and retry
+        // it reset its member id and retry 如果成员试图使用无法识别的id注册，请发送响应，让其重置其成员id，然后重试
         responseCallback(joinError(memberId, Errors.UNKNOWN_MEMBER_ID.code))
       } else {
         group.currentState match {
+          //组状态已死
           case Dead =>
-            // if the group is marked as dead, it means some other thread has just removed the group
-            // from the coordinator metadata; this is likely that the group has migrated to some other
+            // if the group is marked as dead, it means some other thread has just removed the group 如果该组被标记为dead，则表示其他线程刚刚从协调器元数据中删除了该组；
+            // from the coordinator metadata; this is likely that the group has migrated to some other 这可能是因为该组已迁移到其他协调器，或者该组处于暂时的不稳定阶段。让成员在没有指定成员id的情况下重试加入，
             // coordinator OR the group is in a transient unstable phase. Let the member retry
             // joining without the specified member id,
             responseCallback(joinError(memberId, Errors.UNKNOWN_MEMBER_ID.code))
-
+          //准备重平衡
           case PreparingRebalance =>
             if (memberId == JoinGroupRequest.UNKNOWN_MEMBER_ID) {
               addMemberAndRebalance(sessionTimeoutMs, clientId, clientHost, protocols, group, responseCallback)
@@ -166,14 +189,14 @@ class GroupCoordinator(val brokerId: Int,
               val member = group.get(memberId)
               updateMemberAndRebalance(group, member, protocols, responseCallback)
             }
-
+          //等待同步
           case AwaitingSync =>
             if (memberId == JoinGroupRequest.UNKNOWN_MEMBER_ID) {
               addMemberAndRebalance(sessionTimeoutMs, clientId, clientHost, protocols, group, responseCallback)
             } else {
               val member = group.get(memberId)
               if (member.matches(protocols)) {
-                // member is joining with the same metadata (which could be because it failed to
+                // member is joining with the same metadata (which could be because it failed to 成员正在使用相同的元数据加入（这可能是因为它无法接收初始JoinGroup响应），因此只需返回当前生成的当前组信息。
                 // receive the initial JoinGroup response), so just return current group information
                 // for the current generation.
                 responseCallback(JoinGroupResult(
@@ -188,14 +211,14 @@ class GroupCoordinator(val brokerId: Int,
                   leaderId = group.leaderId,
                   errorCode = Errors.NONE.code))
               } else {
-                // member has changed metadata, so force a rebalance
+                // member has changed metadata, so force a rebalance 成员已更改元数据，因此强制重新平衡
                 updateMemberAndRebalance(group, member, protocols, responseCallback)
               }
             }
-
+          //稳定状态
           case Stable =>
             if (memberId == JoinGroupRequest.UNKNOWN_MEMBER_ID) {
-              // if the member id is unknown, register the member to the group
+              // if the member id is unknown, register the member to the group 如果成员id未知，请将该成员注册到组
               addMemberAndRebalance(sessionTimeoutMs, clientId, clientHost, protocols, group, responseCallback)
             } else {
               val member = group.get(memberId)
@@ -217,13 +240,21 @@ class GroupCoordinator(val brokerId: Int,
               }
             }
         }
-
+        //如果是准备重平衡
         if (group.is(PreparingRebalance))
-          joinPurgatory.checkAndComplete(GroupKey(group.groupId))
+          joinPurgatory.checkAndComplete(GroupKey(group.groupId))//炼狱检查并完成延迟任务
       }
     }
   }
 
+  /**
+   * 处理同步组
+   * @param groupId
+   * @param generation
+   * @param memberId
+   * @param groupAssignment
+   * @param responseCallback
+   */
   def handleSyncGroup(groupId: String,
                       generation: Int,
                       memberId: String,
@@ -242,6 +273,14 @@ class GroupCoordinator(val brokerId: Int,
     }
   }
 
+  /**
+   * 操作同步组
+   * @param group
+   * @param generationId
+   * @param memberId
+   * @param groupAssignment
+   * @param responseCallback
+   */
   private def doSyncGroup(group: GroupMetadata,
                           generationId: Int,
                           memberId: String,
@@ -306,6 +345,12 @@ class GroupCoordinator(val brokerId: Int,
     delayedGroupStore.foreach(groupManager.store)
   }
 
+  /**
+   * 处理离开组
+   * @param groupId
+   * @param consumerId
+   * @param responseCallback
+   */
   def handleLeaveGroup(groupId: String, consumerId: String, responseCallback: Short => Unit) {
     if (!isActive.get) {
       responseCallback(Errors.GROUP_COORDINATOR_NOT_AVAILABLE.code)
@@ -338,6 +383,13 @@ class GroupCoordinator(val brokerId: Int,
     }
   }
 
+  /**
+   * 处理心跳
+   * @param groupId
+   * @param memberId
+   * @param generationId
+   * @param responseCallback
+   */
   def handleHeartbeat(groupId: String,
                       memberId: String,
                       generationId: Int,
@@ -598,18 +650,28 @@ class GroupCoordinator(val brokerId: Int,
     heartbeatPurgatory.checkAndComplete(memberKey)
   }
 
+  /**
+   * 新增组成员并重平衡
+   * @param sessionTimeoutMs
+   * @param clientId
+   * @param clientHost
+   * @param protocols
+   * @param group
+   * @param callback
+   * @return
+   */
   private def addMemberAndRebalance(sessionTimeoutMs: Int,
                                     clientId: String,
                                     clientHost: String,
                                     protocols: List[(String, Array[Byte])],
                                     group: GroupMetadata,
                                     callback: JoinCallback) = {
-    // use the client-id with a random id suffix as the member-id
+    // use the client-id with a random id suffix as the member-id 使用clentId和随机数后缀组成memberId
     val memberId = clientId + "-" + group.generateMemberIdSuffix
     val member = new MemberMetadata(memberId, group.groupId, clientId, clientHost, sessionTimeoutMs, protocols)
     member.awaitingJoinCallback = callback
     group.add(member.memberId, member)
-    maybePrepareRebalance(group)
+    maybePrepareRebalance(group)//可能会准备重平衡
     member
   }
 
@@ -629,15 +691,20 @@ class GroupCoordinator(val brokerId: Int,
     }
   }
 
+  /**
+   * 准备重平衡
+   * @param group
+   */
   private def prepareRebalance(group: GroupMetadata) {
-    // if any members are awaiting sync, cancel their request and have them rejoin
+    // if any members are awaiting sync, cancel their request and have them rejoin 如果有任何成员正在等待同步，请取消他们的请求并让他们重新加入
     if (group.is(AwaitingSync))
       resetAndPropagateAssignmentError(group, Errors.REBALANCE_IN_PROGRESS.code)
 
     group.transitionTo(PreparingRebalance)
     info("Preparing to restabilize group %s with old generation %s".format(group.groupId, group.generationId))
-
+    //重平衡超时时间
     val rebalanceTimeout = group.rebalanceTimeout
+    //延迟加入
     val delayedRebalance = new DelayedJoin(this, group, rebalanceTimeout)
     val groupKey = GroupKey(group.groupId)
     joinPurgatory.tryCompleteElseWatch(delayedRebalance, Seq(groupKey))
