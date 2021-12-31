@@ -58,7 +58,7 @@ import java.util.Set;
 
 /**
  * This class manages the coordination process with the consumer coordinator.
- * 此类管理与使用者协调员的协调过程。
+ * 此类管理消费者协调员的协调过程。
  */
 public final class ConsumerCoordinator extends AbstractCoordinator {
 

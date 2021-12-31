@@ -305,7 +305,7 @@ class GroupCoordinator(val brokerId: Int,
             group.get(memberId).awaitingSyncCallback = responseCallback
             completeAndScheduleNextHeartbeatExpiration(group, group.get(memberId))
 
-            // if this is the leader, then we can attempt to persist state and transition to stable
+            // if this is the leader, then we can attempt to persist state and transition to stable 如果这是领导者，那么我们可以尝试保持状态并过渡到稳定状态
             if (memberId == group.leaderId) {
               info(s"Assignment received from leader for group ${group.groupId} for generation ${group.generationId}")
 
@@ -332,7 +332,7 @@ class GroupCoordinator(val brokerId: Int,
             }
 
           case Stable =>
-            // if the group is stable, we just return the current assignment
+            // if the group is stable, we just return the current assignment 如果组是稳定的，我们只返回当前赋值
             val memberMetadata = group.get(memberId)
             responseCallback(memberMetadata.assignment, Errors.NONE.code)
             completeAndScheduleNextHeartbeatExpiration(group, group.get(memberId))
@@ -341,7 +341,7 @@ class GroupCoordinator(val brokerId: Int,
     }
 
     // store the group metadata without holding the group lock to avoid the potential
-    // for deadlock when the callback is invoked
+    // for deadlock when the callback is invoked 在不持有组锁的情况下存储组元数据，以避免调用回调时出现死锁
     delayedGroupStore.foreach(groupManager.store)
   }
 
@@ -399,7 +399,7 @@ class GroupCoordinator(val brokerId: Int,
     } else if (!isCoordinatorForGroup(groupId)) {
       responseCallback(Errors.NOT_COORDINATOR_FOR_GROUP.code)
     } else if (isCoordinatorLoadingInProgress(groupId)) {
-      // the group is still loading, so respond just blindly
+      // the group is still loading, so respond just blindly 该组仍在加载，所以只需盲目响应即可
       responseCallback(Errors.NONE.code)
     } else {
       val group = groupManager.getGroup(groupId)
@@ -644,6 +644,11 @@ class GroupCoordinator(val brokerId: Int,
     heartbeatPurgatory.tryCompleteElseWatch(delayedHeartbeat, Seq(memberKey))
   }
 
+  /**
+   * 离开成员移除心跳
+   * @param group
+   * @param member
+   */
   private def removeHeartbeatForLeavingMember(group: GroupMetadata, member: MemberMetadata) {
     member.isLeaving = true
     val memberKey = MemberKey(member.groupId, member.memberId)
