@@ -152,8 +152,9 @@ public abstract class AbstractCoordinator implements Closeable {
     /**
      * Perform assignment for the group. This is used by the leader to push state to all the members
      * of the group (e.g. to push partition assignments in the case of the new consumer)
-     * @param leaderId The id of the leader (which is this member)
-     * @param allMemberMetadata Metadata from all members of the group
+     * 为组执行任务。领导者使用它将状态推送到组的所有成员（例如，在新使用者的情况下推分区分配）
+     * @param leaderId The id of the leader (which is this member) LeaderId
+     * @param allMemberMetadata Metadata from all members of the group 来自组中所有成员的元数据
      * @return A map from each member to their state assignment
      */
     protected abstract Map<String, ByteBuffer> performAssignment(String leaderId,
@@ -161,7 +162,7 @@ public abstract class AbstractCoordinator implements Closeable {
                                                                  Map<String, ByteBuffer> allMemberMetadata);
 
     /**
-     * Invoked when a group member has successfully joined a group.
+     * Invoked when a group member has successfully joined a group.当组成员成功加入组时调用
      * @param generation The generation that was joined
      * @param memberId The identifier for the local member in the group
      * @param protocol The protocol selected by the coordinator
@@ -219,6 +220,7 @@ public abstract class AbstractCoordinator implements Closeable {
 
     /**
      * Check whether the group should be rejoined (e.g. if metadata changes)
+     * 检查是否应重新加入组（例如，如果元数据发生更改）
      * @return true if it should, false otherwise
      */
     protected boolean needRejoin() {
@@ -237,6 +239,7 @@ public abstract class AbstractCoordinator implements Closeable {
         if (!needRejoin())
             return;
 
+        //需要加入准备
         if (needsJoinPrepare) {
             onJoinPrepare(generation, memberId);
             needsJoinPrepare = false;
@@ -256,7 +259,7 @@ public abstract class AbstractCoordinator implements Closeable {
             future.addListener(new RequestFutureListener<ByteBuffer>() {
                 @Override
                 public void onSuccess(ByteBuffer value) {
-                    // handle join completion in the callback so that the callback will be invoked
+                    // handle join completion in the callback so that the callback will be invoked 在回调中处理连接完成，这样即使消费者在完成重新平衡之前被唤醒，也会调用回调
                     // even if the consumer is woken up before finishing the rebalance
                     onJoinComplete(generation, memberId, protocol, value);
                     needsJoinPrepare = true;
@@ -291,8 +294,11 @@ public abstract class AbstractCoordinator implements Closeable {
 
         private boolean requestInFlight = false;
 
+        /**
+         * 重置
+         */
         public void reset() {
-            // start or restart the heartbeat task to be executed at the next chance
+            // start or restart the heartbeat task to be executed at the next chance 启动或重新启动下一次执行的heartbeat任务
             long now = time.milliseconds();
             heartbeat.resetSessionTimeout(now);
             client.unschedule(this);
@@ -305,24 +311,24 @@ public abstract class AbstractCoordinator implements Closeable {
         public void run(final long now) {
             if (generation < 0 || needRejoin() || coordinatorUnknown()) {
                 // no need to send the heartbeat we're not using auto-assignment or if we are
-                // awaiting a rebalance
+                // awaiting a rebalance 不需要发送心跳信号我们没有使用自动分配，或者如果我们正在等待重新平衡
                 return;
             }
 
             if (heartbeat.sessionTimeoutExpired(now)) {
                 // we haven't received a successful heartbeat in one session interval
-                // so mark the coordinator dead
+                // so mark the coordinator dead 我们在一个会话间隔内没有收到成功的心跳信号，因此请将协调员标记为已死亡
                 coordinatorDead();
                 return;
             }
 
             if (!heartbeat.shouldHeartbeat(now)) {
-                // we don't need to heartbeat now, so reschedule for when we do
+                // we don't need to heartbeat now, so reschedule for when we do 我们现在不需要心跳，所以请重新安排
                 client.schedule(this, now + heartbeat.timeToNextHeartbeat(now));
             } else {
                 heartbeat.sentHeartbeat(now);
                 requestInFlight = true;
-
+                //发送心跳请求
                 RequestFuture<Void> future = sendHeartbeatRequest();
                 future.addListener(new RequestFutureListener<Void>() {
                     @Override
@@ -348,6 +354,7 @@ public abstract class AbstractCoordinator implements Closeable {
      * Join the group and return the assignment for the next generation. This function handles both
      * JoinGroup and SyncGroup, delegating to {@link #performAssignment(String, String, Map)} if
      * elected leader by the coordinator.
+     * 加入该组并为下一代返回任务。此函数处理JoinGroup和SyncGroup，如果协调人选择了领导者，则将其委派给performAssignment（字符串、字符串、映射）。
      * @return A request future which wraps the assignment returned from the group leader
      */
     private RequestFuture<ByteBuffer> sendJoinGroupRequest() {
@@ -369,6 +376,9 @@ public abstract class AbstractCoordinator implements Closeable {
     }
 
 
+    /**
+     * 加入组响应处理类
+     */
     private class JoinGroupResponseHandler extends CoordinatorResponseHandler<JoinGroupResponse, ByteBuffer> {
 
         @Override
@@ -422,17 +432,26 @@ public abstract class AbstractCoordinator implements Closeable {
         }
     }
 
+    /**
+     * 作为跟随者加入
+     * @return
+     */
     private RequestFuture<ByteBuffer> onJoinFollower() {
-        // send follower's sync group with an empty assignment
+        // send follower's sync group with an empty assignment 使用空分配发送跟随者的同步组
         SyncGroupRequest request = new SyncGroupRequest(groupId, generation,
                 memberId, Collections.<String, ByteBuffer>emptyMap());
         log.debug("Sending follower SyncGroup for group {} to coordinator {}: {}", groupId, this.coordinator, request);
         return sendSyncGroupRequest(request);
     }
 
+    /**
+     * 作为领导者加入
+     * @param joinResponse
+     * @return
+     */
     private RequestFuture<ByteBuffer> onJoinLeader(JoinGroupResponse joinResponse) {
         try {
-            // perform the leader synchronization and send back the assignment for the group
+            // perform the leader synchronization and send back the assignment for the group 执行领导同步并发回组的分配
             Map<String, ByteBuffer> groupAssignment = performAssignment(joinResponse.leaderId(), joinResponse.groupProtocol(),
                     joinResponse.members());
 
@@ -444,6 +463,11 @@ public abstract class AbstractCoordinator implements Closeable {
         }
     }
 
+    /**
+     * 发送同步组请求
+     * @param request
+     * @return
+     */
     private RequestFuture<ByteBuffer> sendSyncGroupRequest(SyncGroupRequest request) {
         if (coordinatorUnknown())
             return RequestFuture.coordinatorNotAvailable();
@@ -451,6 +475,9 @@ public abstract class AbstractCoordinator implements Closeable {
                 .compose(new SyncGroupResponseHandler());
     }
 
+    /**
+     * 同步组响应处理类
+     */
     private class SyncGroupResponseHandler extends CoordinatorResponseHandler<SyncGroupResponse, ByteBuffer> {
 
         @Override
@@ -558,6 +585,7 @@ public abstract class AbstractCoordinator implements Closeable {
 
     /**
      * Check if we know who the coordinator is and we have an active connection
+     * 查我们是否知道协调员是谁，并且我们有一个活动的连接
      * @return true if the coordinator is unknown
      */
     public boolean coordinatorUnknown() {
@@ -574,6 +602,7 @@ public abstract class AbstractCoordinator implements Closeable {
 
     /**
      * Mark the current coordinator as dead.
+     * 将当前协调器标记为死
      */
     protected void coordinatorDead() {
         if (this.coordinator != null) {
@@ -595,6 +624,7 @@ public abstract class AbstractCoordinator implements Closeable {
 
     /**
      * Leave the current group and reset local generation/memberId.
+     * 离开当前组并重置本地生成/成员I
      */
     public void maybeLeaveGroup() {
         client.unschedule(heartbeatTask);
@@ -609,6 +639,9 @@ public abstract class AbstractCoordinator implements Closeable {
         rejoinNeeded = true;
     }
 
+    /**
+     * 离开组请求
+     */
     private void sendLeaveGroupRequest() {
         LeaveGroupRequest request = new LeaveGroupRequest(groupId, memberId);
         RequestFuture<Void> future = client.send(coordinator, ApiKeys.LEAVE_GROUP, request)
@@ -627,6 +660,9 @@ public abstract class AbstractCoordinator implements Closeable {
         client.poll(future, 0);
     }
 
+    /**
+     * 离开组响应处理类
+     */
     private class LeaveGroupResponseHandler extends CoordinatorResponseHandler<LeaveGroupResponse, Void> {
         @Override
         public LeaveGroupResponse parse(ClientResponse response) {
@@ -653,6 +689,9 @@ public abstract class AbstractCoordinator implements Closeable {
                 .compose(new HeartbeatCompletionHandler());
     }
 
+    /**
+     * 心跳完成处理类
+     */
     private class HeartbeatCompletionHandler extends CoordinatorResponseHandler<HeartbeatResponse, Void> {
         @Override
         public HeartbeatResponse parse(ClientResponse response) {

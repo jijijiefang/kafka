@@ -872,6 +872,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
     /**
      * Unsubscribe from topics currently subscribed with {@link #subscribe(Collection)}. This
      * also clears any partitions directly assigned through {@link #assign(Collection)}.
+     * 取消订阅当前使用subscribe（集合）订阅的主题。这也会清除通过assign（Collection）直接分配的所有分区
      */
     public void unsubscribe() {
         acquire();

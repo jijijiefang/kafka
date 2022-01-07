@@ -358,7 +358,7 @@ public class NetworkClient implements KafkaClient {
      * prefer a node with an existing connection, but will potentially choose a node for which we don't yet have a
      * connection if all existing connections are in use. This method will never choose a node for which there is no
      * existing connection and from which we have disconnected within the reconnect backoff period.
-     *
+     * 选择未完成请求最少且至少符合连接条件的节点。此方法将首选具有现有连接的节点，但如果所有现有连接都在使用中，则可能会选择尚未建立连接的节点。此方法永远不会选择没有现有连接且在重新连接退避期间已断开连接的节点。
      * @return The node with the fewest in-flight requests.
      */
     @Override
