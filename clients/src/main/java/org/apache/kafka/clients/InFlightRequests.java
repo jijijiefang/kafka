@@ -55,7 +55,8 @@ final class InFlightRequests {
     }
 
     /**
-     * Get the oldest request (the one that that will be completed next) for the given node 获取给定节点的最早请求
+     * Get the oldest request (the one that that will be completed next) for the given node
+     * 获取给定节点的最早请求
      */
     public ClientRequest completeNext(String node) {
         return requestQueue(node).pollLast();
@@ -80,7 +81,7 @@ final class InFlightRequests {
 
     /**
      * Can we send more requests to this node?
-     * 
+     * 我们可以向该节点发送更多请求吗
      * @param node Node in question
      * @return true iff we have no requests still being sent to the given node
      */

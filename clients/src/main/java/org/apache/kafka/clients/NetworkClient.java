@@ -217,7 +217,7 @@ public class NetworkClient implements KafkaClient {
 
     /**
      * Are we connected and ready and able to send more requests to the given connection?
-     *
+     * 我们是否已连接并准备好并能够向给定连接发送更多请求
      * @param node The node
      */
     private boolean canSendRequest(String node) {
@@ -270,7 +270,7 @@ public class NetworkClient implements KafkaClient {
             log.error("Unexpected error during I/O", e);
         }
 
-        // process completed actions
+        // process completed actions 处理完成的动作
         long updatedNow = this.time.milliseconds();
         List<ClientResponse> responses = new ArrayList<>();
         //处理已完成的发送
@@ -373,10 +373,10 @@ public class NetworkClient implements KafkaClient {
             Node node = nodes.get(idx);
             int currInflight = this.inFlightRequests.inFlightRequestCount(node.idString());
             if (currInflight == 0 && this.connectionStates.isConnected(node.idString())) {
-                // if we find an established connection with no in-flight requests we can stop right away
+                // if we find an established connection with no in-flight requests we can stop right away 如果我们发现已建立的连接没有进行中的请求，我们可以立即停止
                 return node;
             } else if (!this.connectionStates.isBlackedOut(node.idString(), now) && currInflight < inflight) {
-                // otherwise if this is the best we have found so far, record that
+                // otherwise if this is the best we have found so far, record that 否则，如果这是我们迄今为止发现的最好的，请记录
                 inflight = currInflight;
                 found = node;
             }
@@ -394,6 +394,7 @@ public class NetworkClient implements KafkaClient {
     public static Struct parseResponse(ByteBuffer responseBuffer, RequestHeader requestHeader) {
         ResponseHeader responseHeader = ResponseHeader.parse(responseBuffer);
         // Always expect the response version id to be the same as the request version id
+        // 始终期望响应版本ID与请求版本ID相同
         short apiKey = requestHeader.apiKey();
         short apiVer = requestHeader.apiVersion();
         //组装响应体
@@ -442,12 +443,12 @@ public class NetworkClient implements KafkaClient {
 
     /**
      * Handle any completed request send. In particular if no response is expected consider the request complete.
-     *
+     * 处理任何已完成的请求发送。特别是如果没有预期响应，则认为请求已完成。
      * @param responses The list of responses to update
      * @param now The current time
      */
     private void handleCompletedSends(List<ClientResponse> responses, long now) {
-        // if no response is expected then when the send is completed, return it
+        // if no response is expected then when the send is completed, return it 如果没有响应，那么当发送完成时，返回它
         for (Send send : this.selector.completedSends()) {
             ClientRequest request = this.inFlightRequests.lastSent(send.destination());
             //如果预期没有响应，则认为请求已完成。跟acks相关
@@ -471,7 +472,7 @@ public class NetworkClient implements KafkaClient {
             ClientRequest req = inFlightRequests.completeNext(source);
             //解析响应
             Struct body = parseResponse(receive.payload(), req.request().header());
-            //如果不是ApiKeys.METADATA
+            //如果不是ApiKeys.METADATA放入响应，如果是ApiKeys.METADATA，则处理元数据拉取响应，更新本地元数据，触发重平衡
             if (!metadataUpdater.maybeHandleCompletedReceive(req, now, body))
                 responses.add(new ClientResponse(req, now, false, body));
         }
@@ -479,7 +480,7 @@ public class NetworkClient implements KafkaClient {
 
     /**
      * Handle any disconnected connections
-     *
+     * 处理任何断开的连接
      * @param responses The list of responses that completed with the disconnection
      * @param now The current time
      */
@@ -494,7 +495,8 @@ public class NetworkClient implements KafkaClient {
     }
 
     /**
-     * Record any newly completed connections 记录所有新完成的连接
+     * Record any newly completed connections
+     * 记录所有新完成的连接
      */
     private void handleConnections() {
         for (String node : this.selector.connected()) {
@@ -504,7 +506,8 @@ public class NetworkClient implements KafkaClient {
     }
 
     /**
-     * Validate that the response corresponds to the request we expect or else explode 验证响应是否与我们预期的请求相对应
+     * Validate that the response corresponds to the request we expect or else explode
+     * 验证响应是否与我们预期的请求相对应
      */
     private static void correlate(RequestHeader requestHeader, ResponseHeader responseHeader) {
         if (requestHeader.correlationId() != responseHeader.correlationId())
@@ -548,6 +551,7 @@ public class NetworkClient implements KafkaClient {
         private boolean metadataFetchInProgress;
 
         /* the last timestamp when no broker node is available to connect */
+        //没有代理节点可连接时的最后一个时间戳
         private long lastNoNodeAvailableMs;
 
         DefaultMetadataUpdater(Metadata metadata) {
@@ -616,6 +620,13 @@ public class NetworkClient implements KafkaClient {
             return false;
         }
 
+        /**
+         * 处理元数据拉取响应
+         * @param req
+         * @param now
+         * @param body
+         * @return
+         */
         @Override
         public boolean maybeHandleCompletedReceive(ClientRequest req, long now, Struct body) {
             short apiKey = req.request().header().apiKey();
@@ -642,13 +653,13 @@ public class NetworkClient implements KafkaClient {
             //组装元数据拉取响应
             MetadataResponse response = new MetadataResponse(body);
             Cluster cluster = response.cluster();
-            // check if any topics metadata failed to get updated
+            // check if any topics metadata failed to get updated 检查是否有任何主题元数据未能更新
             Map<String, Errors> errors = response.errors();
             if (!errors.isEmpty())
                 log.warn("Error while fetching metadata with correlation id {} : {}", header.correlationId(), errors);
 
-            // don't update the cluster if there are no valid nodes...the topic we want may still be in the process of being
-            // created which means we will get errors and no nodes until it exists
+            // don't update the cluster if there are no valid nodes...the topic we want may still be in the process of being 如果没有有效节点，请不要更新集群......我们想要的主题可能仍在创建过程中，
+            // created which means we will get errors and no nodes until it exists 这意味着我们将得到错误并且在它存在之前没有节点
             if (cluster.nodes().size() > 0) {
                 this.metadata.update(cluster, now);
             } else {
@@ -659,6 +670,7 @@ public class NetworkClient implements KafkaClient {
 
         /**
          * Create a metadata request for the given topics
+         * 根据提供的主题创建元数据拉取请求
          */
         private ClientRequest request(long now, String node, MetadataRequest metadata) {
             RequestSend send = new RequestSend(node, nextRequestHeader(ApiKeys.METADATA), metadata.toStruct());
@@ -666,12 +678,13 @@ public class NetworkClient implements KafkaClient {
         }
 
         /**
-         * Add a metadata request to the list of sends if we can make one 如果可以的话，将元数据请求添加到发送列表中
+         * Add a metadata request to the list of sends if we can make one
+         * 如果可以的话，将元数据请求添加到发送列表中
          */
         private void maybeUpdate(long now, Node node) {
             if (node == null) {
                 log.debug("Give up sending metadata request since no node is available");
-                // mark the timestamp for no node available to connect
+                // mark the timestamp for no node available to connect 标记无节点可连接的时间戳
                 this.lastNoNodeAvailableMs = now;
                 return;
             }

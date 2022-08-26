@@ -48,7 +48,7 @@ class Partition(val topic: String,
   private val logManager = replicaManager.logManager
   private val zkUtils = replicaManager.zkUtils
   private val assignedReplicaMap = new Pool[Int, Replica]
-  // The read lock is only required when multiple reads are executed and needs to be in a consistent manner
+  // The read lock is only required when multiple reads are executed and needs to be in a consistent manner 只有在执行多次读取时才需要读锁，并且需要以一致的方式进行
   private val leaderIsrUpdateLock = new ReentrantReadWriteLock()
   private var zkVersion: Int = LeaderAndIsr.initialZKVersion
   @volatile private var leaderEpoch: Int = LeaderAndIsr.initialLeaderEpoch - 1
@@ -483,7 +483,7 @@ class Partition(val topic: String,
         //判断当前Partition是否是Leader
         case Some(leaderReplica) =>
           val log = leaderReplica.log.get
-          //ISR最少数量
+          //ISR最少数量配置
           val minIsr = log.config.minInSyncReplicas
           //ISR列表数量
           val inSyncSize = inSyncReplicas.size

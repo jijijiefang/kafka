@@ -52,29 +52,44 @@ public class ProduceRequest extends AbstractRequest {
     //主题分区消息数据
     private final Map<TopicPartition, ByteBuffer> partitionRecords;
 
+    /**
+     * 消息发送请求
+     * @param acks
+     * @param timeout
+     * @param partitionRecords
+     */
     public ProduceRequest(short acks, int timeout, Map<TopicPartition, ByteBuffer> partitionRecords) {
         super(new Struct(CURRENT_SCHEMA));
+        //Map<主题:Map<分区，缓冲区>>
         Map<String, Map<Integer, ByteBuffer>> recordsByTopic = CollectionUtils.groupDataByTopic(partitionRecords);
+        //"acks"
         struct.set(ACKS_KEY_NAME, acks);
+        //"timeout"
         struct.set(TIMEOUT_KEY_NAME, timeout);
         List<Struct> topicDatas = new ArrayList<Struct>(recordsByTopic.size());
-        //整理数据
+        //整理数据 Key：主题，Value:Map:key:分区，value:缓冲区
         for (Map.Entry<String, Map<Integer, ByteBuffer>> entry : recordsByTopic.entrySet()) {
-            //主题对象
+            //主题对象"topic_data"
             Struct topicData = struct.instance(TOPIC_DATA_KEY_NAME);
+            //"topic"
             topicData.set(TOPIC_KEY_NAME, entry.getKey());
             List<Struct> partitionArray = new ArrayList<Struct>();
             //整理主题分区数据
             for (Map.Entry<Integer, ByteBuffer> partitionEntry : entry.getValue().entrySet()) {
                 ByteBuffer buffer = partitionEntry.getValue().duplicate();
+                //"data"
                 Struct part = topicData.instance(PARTITION_DATA_KEY_NAME)
+                                       //"partition"
                                        .set(PARTITION_KEY_NAME, partitionEntry.getKey())
+                                       //"record_set"
                                        .set(RECORD_SET_KEY_NAME, buffer);
                 partitionArray.add(part);
             }
+            //"data"
             topicData.set(PARTITION_DATA_KEY_NAME, partitionArray.toArray());
             topicDatas.add(topicData);
         }
+        //"topic_data"
         struct.set(TOPIC_DATA_KEY_NAME, topicDatas.toArray());
         this.acks = acks;
         this.timeout = timeout;

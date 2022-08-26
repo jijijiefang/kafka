@@ -230,6 +230,7 @@ public class Selector implements Selectable {
 
     /**
      * Queue the given request for sending in the subsequent {@link #poll(long)} calls
+     * 在后续的poll(long)调用中排队发送给定的请求
      * @param send The request to send
      */
     public void send(Send send) {
@@ -277,7 +278,7 @@ public class Selector implements Selectable {
         if (hasStagedReceives() || !immediatelyConnectedKeys.isEmpty())
             timeout = 0;
 
-        /* check ready keys */
+        /* check ready keys 检查已就绪的键*/
         long startSelect = time.nanoseconds();
         int readyKeys = select(timeout);
         long endSelect = time.nanoseconds();
@@ -309,7 +310,7 @@ public class Selector implements Selectable {
             iterator.remove();
             KafkaChannel channel = channel(key);
 
-            // register all per-connection metrics at once
+            // register all per-connection metrics at once 一次注册所有每个连接的指标
             sensors.maybeRegisterConnectionMetrics(channel.id());
             lruConnections.put(channel.id(), currentTimeNanos);
 
@@ -318,14 +319,14 @@ public class Selector implements Selectable {
                 /* complete any connections that have finished their handshake (either normally or immediately) *///完成所有已完成握手的连接
                 if (isImmediatelyConnected || key.isConnectable()) {
                     if (channel.finishConnect()) {
-                        //已连接的集合加入此BrokerId
+                        //已连接集合加入此BrokerId
                         this.connected.add(channel.id());
                         this.sensors.connectionCreated.record();
                     } else
                         continue;
                 }
 
-                /* if channel is not ready finish prepare */
+                /* if channel is not ready finish prepare 如果通道未准备好完成准备*/
                 if (channel.isConnected() && !channel.ready())
                     channel.prepare();
 
@@ -347,7 +348,7 @@ public class Selector implements Selectable {
                     }
                 }
 
-                /* cancel any defunct sockets */
+                /* cancel any defunct sockets 取消已失效的套接字*/
                 if (!key.isValid()) {
                     close(channel);
                     this.disconnected.add(channel.id());
@@ -551,7 +552,8 @@ public class Selector implements Selectable {
 
 
     /**
-     * adds a receive to staged receives 将接收添加到暂存接收
+     * adds a receive to staged receives
+     * 将接收添加到暂存接收
      */
     private void addToStagedReceives(KafkaChannel channel, NetworkReceive receive) {
         if (!stagedReceives.containsKey(channel))
@@ -563,7 +565,8 @@ public class Selector implements Selectable {
     }
 
     /**
-     * checks if there are any staged receives and adds to completedReceives 检查是否有任何暂存接收并添加到完成接收
+     * checks if there are any staged receives and adds to completedReceives
+     * 检查是否有任何暂存接收并添加到完成接收
      */
     private void addToCompletedReceives() {
         if (!this.stagedReceives.isEmpty()) {

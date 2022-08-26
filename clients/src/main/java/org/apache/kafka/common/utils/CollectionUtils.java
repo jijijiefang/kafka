@@ -28,6 +28,7 @@ public class CollectionUtils {
      * @return partitioned data
      */
     public static <T> Map<String, Map<Integer, T>> groupDataByTopic(Map<TopicPartition, T> data) {
+        //Map<主题:Map<分区，缓冲区>>
         Map<String, Map<Integer, T>> dataByTopic = new HashMap<String, Map<Integer, T>>();
         for (Map.Entry<TopicPartition, T> entry: data.entrySet()) {
             String topic = entry.getKey().topic();
@@ -37,6 +38,7 @@ public class CollectionUtils {
                 topicData = new HashMap<Integer, T>();
                 dataByTopic.put(topic, topicData);
             }
+            //分区:缓冲区
             topicData.put(partition, entry.getValue());
         }
         return dataByTopic;

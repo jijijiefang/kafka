@@ -18,7 +18,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.GatheringByteChannel;
 
 /**
- * A send backed by an array of byte buffers 由字节缓冲区数组支持的发送
+ * A send backed by an array of byte buffers
+ * 由字节缓冲区数组支持的发送
  */
 public class ByteBufferSend implements Send {
 

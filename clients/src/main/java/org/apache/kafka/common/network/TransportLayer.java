@@ -18,11 +18,11 @@
 package org.apache.kafka.common.network;
 
 /*
- * Transport layer for underlying communication.
+ * Transport layer for underlying communication. 底层通信的传输层。
  * At very basic level it is wrapper around SocketChannel and can be used as substitute for SocketChannel
- * and other network Channel implementations.
+ * and other network Channel implementations.在非常基本的级别上，它是SocketChannel的包装器，可以用作SocketChannel和其他网络Channel实现的替代品。
  * As NetworkClient replaces BlockingChannel and other implementations we will be using KafkaChannel as
- * a network I/O channel.
+ * a network I/O channel.由于NetworkClient取代了BlockingChannel和其他实现，我们将使用KafkaChannel作为网络 IO 通道
  */
 import java.io.IOException;
 import java.nio.channels.FileChannel;

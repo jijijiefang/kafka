@@ -120,6 +120,10 @@ public class SubscriptionState {
         changeSubscription(topics);
     }
 
+    /**
+     * 更改订阅
+     * @param topicsToSubscribe
+     */
     public void changeSubscription(Collection<String> topicsToSubscribe) {
         if (!this.subscription.equals(new HashSet<>(topicsToSubscribe))) {
             this.subscription.clear();

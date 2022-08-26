@@ -17,6 +17,7 @@ import java.nio.channels.GatheringByteChannel;
 
 /**
  * This interface models the in-progress sending of data to a destination identified by an integer id.
+ * 该接口模拟了将数据发送到由整数 id 标识的目的地的过程。
  */
 public interface Send {
 

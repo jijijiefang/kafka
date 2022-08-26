@@ -204,8 +204,9 @@ public class Sender implements Runnable {
                                                                          result.readyNodes,
                                                                          this.maxRequestSize,
                                                                          now);
+        //是否需要保证消息的顺序性
         if (guaranteeMessageOrder) {
-            // Mute all the partitions drained
+            // Mute all the partitions drained 静音所有已排空的分区
             for (List<RecordBatch> batchList : batches.values()) {
                 for (RecordBatch batch : batchList)
                     this.accumulator.mutePartition(batch.topicPartition);
@@ -364,9 +365,11 @@ public class Sender implements Runnable {
             produceRecordsByPartition.put(tp, batch.records.buffer());
             recordsByPartition.put(tp, batch);
         }
+        //构建消息发送请求
         ProduceRequest request = new ProduceRequest(acks, timeout, produceRecordsByPartition);
+        //封装网络请求
         RequestSend send = new RequestSend(Integer.toString(destination),
-                                           this.client.nextRequestHeader(ApiKeys.PRODUCE),
+                                           this.client.nextRequestHeader(ApiKeys.PRODUCE),//PRODUCE(0, "Produce")
                                            request.toStruct());
         RequestCompletionHandler callback = new RequestCompletionHandler() {
             public void onComplete(ClientResponse response) {
@@ -379,6 +382,7 @@ public class Sender implements Runnable {
 
     /**
      * Wake up the selector associated with this send thread
+     * 唤醒与此发送线程关联的选择器
      */
     public void wakeup() {
         this.client.wakeup();

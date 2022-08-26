@@ -90,6 +90,7 @@ final class ClusterConnectionStates {
 
     /**
      * Return true iff a specific connection is connected
+     * 如果连接了特定连接，则返回 true
      * @param id The id of the connection to check
      */
     public boolean isConnected(String id) {

@@ -196,6 +196,7 @@ public final class Cluster {
 
     /**
      * Get the list of partitions whose leader is this node
+     * 获取leader为本节点的partition列表
      * @param nodeId The node id
      * @return A list of partitions
      */

@@ -30,22 +30,22 @@ public class MemoryRecords implements Records {
 
     private final static int WRITE_LIMIT_FOR_READABLE_ONLY = -1;
 
-    // the compressor used for appends-only
+    // the compressor used for appends-only 仅用于追加的压缩器
     private final Compressor compressor;
 
-    // the write limit for writable buffer, which may be smaller than the buffer capacity
+    // the write limit for writable buffer, which may be smaller than the buffer capacity 可写缓冲区的写入限制，可能小于缓冲区容量
     private final int writeLimit;
 
-    // the capacity of the initial buffer, which is only used for de-allocation of writable records
+    // the capacity of the initial buffer, which is only used for de-allocation of writable records 初始缓冲区的容量，仅用于可写记录的解除分配
     private final int initialCapacity;
 
-    // the underlying buffer used for read; while the records are still writable it is null
+    // the underlying buffer used for read; while the records are still writable it is null 用于读取的底层缓冲区；虽然记录仍然是可写的，但它是空的
     private ByteBuffer buffer;
 
-    // indicate if the memory records is writable or not (i.e. used for appends or read-only)
+    // indicate if the memory records is writable or not (i.e. used for appends or read-only) 指示内存记录是否可写（即用于追加或只读）
     private boolean writable;
 
-    // Construct a writable memory records
+    // Construct a writable memory records 构造可写的内存记录
     private MemoryRecords(ByteBuffer buffer, CompressionType type, boolean writable, int writeLimit) {
         this.writable = writable;
         this.writeLimit = writeLimit;
@@ -64,7 +64,7 @@ public class MemoryRecords implements Records {
     }
 
     public static MemoryRecords emptyRecords(ByteBuffer buffer, CompressionType type) {
-        // use the buffer capacity as the default write limit
+        // use the buffer capacity as the default write limit 使用缓冲区容量作为默认写入限制
         return emptyRecords(buffer, type, buffer.capacity());
     }
 
@@ -106,15 +106,17 @@ public class MemoryRecords implements Records {
 
     /**
      * Check if we have room for a new record containing the given key/value pair
-     *
+     * 检查我们是否有空间容纳包含给定键/值对的新记录
      * Note that the return value is based on the estimate of the bytes written to the compressor, which may not be
      * accurate if compression is really used. When this happens, the following append may cause dynamic buffer
      * re-allocation in the underlying byte buffer stream.
-     *
+     * 注意，返回值是基于写入压缩器的字节的估计值，如果真的使用压缩，这可能不准确。发生这种情况时，以下追加可能会导致底层字节缓冲区流中的动态缓冲区重新分配。
      * There is an exceptional case when appending a single message whose size is larger than the batch size, the
      * capacity will be the message size which is larger than the write limit, i.e. the batch size. In this case
      * the checking should be based on the capacity of the initialized buffer rather than the write limit in order
      * to accept this single record.
+     * 有一种例外情况，当附加一条大于批量大小的消息时，容量将是大于写入限制的消息大小，即批量大小。
+     * 在这种情况下，检查应该基于初始化缓冲区的容量而不是写入限制，以便接受这个单条记录
      */
     public boolean hasRoomFor(byte[] key, byte[] value) {
         if (!this.writable)
@@ -135,6 +137,7 @@ public class MemoryRecords implements Records {
 
     /**
      * Close this batch for no more appends
+     * 关闭此批次不再追加
      */
     public void close() {
         if (writable) {

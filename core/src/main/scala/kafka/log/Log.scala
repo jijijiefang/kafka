@@ -340,6 +340,7 @@ class Log(val dir: File,
           val offset = new LongRef(nextOffsetMetadata.messageOffset)
           appendInfo.firstOffset = offset.value
           val now = time.milliseconds
+          //ByteBufferMessageSet
           val (validatedMessages, messageSizesMaybeChanged) = try {
             validMessages.validateMessagesAndAssignOffsets(offset,
                                                            now,
@@ -358,7 +359,7 @@ class Log(val dir: File,
             appendInfo.timestamp = now
 
           // re-validate message sizes if there's a possibility that they have changed (due to re-compression or message
-          // format conversion)
+          // format conversion) 如果消息大小有可能发生变化（由于重新压缩或消息格式转换），则重新验证消息大小
           if (messageSizesMaybeChanged) {
             for (messageAndOffset <- validMessages.shallowIterator) {
               if (MessageSet.entrySize(messageAndOffset.message) > config.maxMessageSize) {
@@ -373,7 +374,7 @@ class Log(val dir: File,
           }
 
         } else {
-          // we are taking the offsets we are given
+          // we are taking the offsets we are given 接受我们得到的偏移量
           if (!appendInfo.offsetsMonotonic || appendInfo.firstOffset < nextOffsetMetadata.messageOffset)
             throw new IllegalArgumentException("Out of order offsets found in " + messages)
         }
@@ -407,20 +408,20 @@ class Log(val dir: File,
   }
 
   /**
-   * Validate the following:
+   * Validate the following: 验证以下内容：
    * <ol>
-   * <li> each message matches its CRC
-   * <li> each message size is valid
+   * <li> each message matches its CRC 每条消息都匹配它的 CRC
+   * <li> each message size is valid 每个消息大小都是有效的
    * </ol>
    *
-   * Also compute the following quantities:
+   * Also compute the following quantities: 还要计算以下数量：
    * <ol>
-   * <li> First offset in the message set
-   * <li> Last offset in the message set
-   * <li> Number of messages
-   * <li> Number of valid bytes
-   * <li> Whether the offsets are monotonically increasing
-   * <li> Whether any compression codec is used (if many are used, then the last one is given)
+   * <li> First offset in the message set 消息集中的第一个偏移量
+   * <li> Last offset in the message set 消息集中的最后一个偏移量
+   * <li> Number of messages 消息数
+   * <li> Number of valid bytes 有效字节数
+   * <li> Whether the offsets are monotonically increasing 偏移量是否单调递增
+   * <li> Whether any compression codec is used (if many are used, then the last one is given) 是否使用任何压缩编解码器（如果使用多个，则给出最后一个）
    * </ol>
    */
   private def analyzeAndValidateMessageSet(messages: ByteBufferMessageSet): LogAppendInfo = {
@@ -430,18 +431,18 @@ class Log(val dir: File,
     var sourceCodec: CompressionCodec = NoCompressionCodec
     var monotonic = true
     for(messageAndOffset <- messages.shallowIterator) {
-      // update the first offset if on the first message
+      // update the first offset if on the first message 如果在第一条消息上，则更新第一个偏移量
       if(firstOffset < 0)
         firstOffset = messageAndOffset.offset
-      // check that offsets are monotonically increasing
+      // check that offsets are monotonically increasing 检查偏移量是否单调增加
       if(lastOffset >= messageAndOffset.offset)
         monotonic = false
-      // update the last offset seen
+      // update the last offset seen 更新最后看到的偏移量
       lastOffset = messageAndOffset.offset
 
       val m = messageAndOffset.message
 
-      // Check if the message sizes are valid.
+      // Check if the message sizes are valid.检查消息大小是否有效
       val messageSize = MessageSet.entrySize(m)
       if(messageSize > config.maxMessageSize) {
         BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).bytesRejectedRate.mark(messages.sizeInBytes)
@@ -450,7 +451,7 @@ class Log(val dir: File,
           .format(messageSize, config.maxMessageSize))
       }
 
-      // check the validity of the message by checking CRC
+      // check the validity of the message by checking CRC 通过检查CRC来检查消息的有效性
       m.ensureValid()
 
       shallowMessageCount += 1
@@ -461,7 +462,7 @@ class Log(val dir: File,
         sourceCodec = messageCodec
     }
 
-    // Apply broker-side compression if any
+    // Apply broker-side compression if any 应用代理端压缩（如果有）
     val targetCodec = BrokerCompressionCodec.getTargetCompressionCodec(config.compressionType, sourceCodec)
 
     LogAppendInfo(firstOffset, lastOffset, Message.NoTimestamp, sourceCodec, targetCodec, shallowMessageCount, validBytesCount, monotonic)

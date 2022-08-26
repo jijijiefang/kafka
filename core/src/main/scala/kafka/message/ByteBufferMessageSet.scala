@@ -432,7 +432,7 @@ class ByteBufferMessageSet(val buffer: ByteBuffer) extends MessageSet with Loggi
       // 3. When magic value to use is above 0, but some fields of inner messages need to be overwritten. 当要使用的魔法值大于0时，但需要覆盖内部消息的某些字段。
       // 4. Message format conversion is needed. 需要进行消息格式转换。
 
-      // No in place assignment situation 1 and 2
+      // No in place assignment situation 1 and 2 没有就地分配情况1和2
       var inPlaceAssignment = sourceCodec == targetCodec && messageFormatVersion > Message.MagicValue_V0
 
       var maxTimestamp = Message.NoTimestamp
@@ -443,10 +443,10 @@ class ByteBufferMessageSet(val buffer: ByteBuffer) extends MessageSet with Loggi
         validateMessageKey(message, compactedTopic)
 
         if (message.magic > Message.MagicValue_V0 && messageFormatVersion > Message.MagicValue_V0) {
-          // No in place assignment situation 3
+          // No in place assignment situation 3 没有就地分配情况3
           // Validate the timestamp
           validateTimestamp(message, now, messageTimestampType, messageTimestampDiffMaxMs)
-          // Check if we need to overwrite offset
+          // Check if we need to overwrite offset 检查我们是否需要覆盖偏移量
           if (messageAndOffset.offset != expectedInnerOffset.getAndIncrement())
             inPlaceAssignment = false
           maxTimestamp = math.max(maxTimestamp, message.timestamp)
@@ -456,7 +456,7 @@ class ByteBufferMessageSet(val buffer: ByteBuffer) extends MessageSet with Loggi
           throw new InvalidMessageException("Compressed outer message should not have an inner message with a " +
             s"compression attribute set: $message")
 
-        // No in place assignment situation 4
+        // No in place assignment situation 4 没有到位分配情况4
         if (message.magic != messageFormatVersion)
           inPlaceAssignment = false
 
@@ -464,7 +464,7 @@ class ByteBufferMessageSet(val buffer: ByteBuffer) extends MessageSet with Loggi
       }
 
       if (!inPlaceAssignment) {
-        // Cannot do in place assignment.
+        // Cannot do in place assignment.不能就地分配
         val wrapperMessageTimestamp = {
           if (messageFormatVersion == Message.MagicValue_V0)
             Some(Message.NoTimestamp)

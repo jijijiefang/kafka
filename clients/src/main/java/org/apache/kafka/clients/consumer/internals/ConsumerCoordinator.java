@@ -146,6 +146,9 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
         return metadataList;
     }
 
+    /**
+     * 元数据更新监听器
+     */
     private void addMetadataListener() {
         this.metadata.addListener(new Metadata.Listener() {
             @Override
@@ -158,6 +161,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
                         if (filterTopic(topic))
                             unauthorizedTopics.add(topic);
                     }
+                    //如果存在未经授权的主题
                     if (!unauthorizedTopics.isEmpty())
                         throw new TopicAuthorizationException(unauthorizedTopics);
 
@@ -166,14 +170,16 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
                     for (String topic : cluster.topics())
                         if (filterTopic(topic))
                             topicsToSubscribe.add(topic);
-
+                    //更改订阅
                     subscriptions.changeSubscription(topicsToSubscribe);
+                    //替换主题
                     metadata.setTopics(subscriptions.groupSubscription());
                 } else if (!cluster.unauthorizedTopics().isEmpty()) {
                     throw new TopicAuthorizationException(new HashSet<>(cluster.unauthorizedTopics()));
                 }
 
                 // check if there are any changes to the metadata which should trigger a rebalance
+                // 检查元数据是否有任何会触发重新平衡的更改
                 if (subscriptions.partitionsAutoAssigned()) {
                     MetadataSnapshot snapshot = new MetadataSnapshot(subscriptions, cluster);
                     if (!snapshot.equals(metadataSnapshot)) {

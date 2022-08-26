@@ -18,7 +18,8 @@ import org.apache.kafka.common.protocol.types.Struct;
 import java.nio.ByteBuffer;
 
 /**
- * A send object for a kafka request 请求发送对象
+ * A send object for a kafka request
+ * 请求发送对象
  */
 public class RequestSend extends NetworkSend {
 

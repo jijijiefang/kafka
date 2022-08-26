@@ -12,18 +12,14 @@
  */
 package org.apache.kafka.clients;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.*;
 
 /**
  * A class encapsulating some of the logic around metadata.
@@ -85,6 +81,7 @@ public final class Metadata {
 
     /**
      * Get the current cluster info without blocking
+     * 获取当前集群信息而不阻塞
      */
     public synchronized Cluster fetch() {
         return this.cluster;
@@ -94,6 +91,7 @@ public final class Metadata {
      * The next time to update the cluster info is the maximum of the time the current info will expire and the time the
      * current info can be updated (i.e. backoff time has elapsed); If an update has been request then the expiry time
      * is now
+     * 一次更新集群信息的时间是当前信息将过期的时间和当前信息可以更新的时间（即退避时间已经过去）中的最大值；如果已请求更新，则到期时间为现在
      */
     public synchronized long timeToNextUpdate(long nowMs) {
         long timeToExpire = needUpdate ? 0 : Math.max(this.lastSuccessfulRefreshMs + this.metadataExpireMs - nowMs, 0);
@@ -102,7 +100,8 @@ public final class Metadata {
     }
 
     /**
-     * Request an update of the current cluster metadata info, return the current version before the update 请求更新当前群集元数据信息，在更新之前返回当前版本
+     * Request an update of the current cluster metadata info, return the current version before the update
+     * 请求更新当前群集元数据信息，在更新之前返回当前版本
      */
     public synchronized int requestUpdate() {
         this.needUpdate = true;
@@ -119,6 +118,7 @@ public final class Metadata {
 
     /**
      * Wait for metadata update until the current version is larger than the last version we know of
+     * 等待元数据更新，直到当前版本大于我们知道的最后一个版本
      */
     public synchronized void awaitUpdate(final int lastVersion, final long maxWaitMs) throws InterruptedException {
         if (maxWaitMs < 0) {
@@ -129,6 +129,7 @@ public final class Metadata {
         while (this.version <= lastVersion) {
             if (remainingWaitMs != 0)
                 wait(remainingWaitMs);
+            //唤醒以后计算耗时
             long elapsed = System.currentTimeMillis() - begin;
             if (elapsed >= maxWaitMs)
                 throw new TimeoutException("Failed to update metadata after " + maxWaitMs + " ms.");
@@ -165,13 +166,15 @@ public final class Metadata {
 
     /**
      * Update the cluster metadata
+     * 更新集群元数据
      */
     public synchronized void update(Cluster cluster, long now) {
         this.needUpdate = false;
         this.lastRefreshMs = now;
         this.lastSuccessfulRefreshMs = now;
+        //版本加1
         this.version += 1;
-
+        //ConsumerCoordinator里加的监听器处理
         for (Listener listener: listeners)
             listener.onMetadataUpdate(cluster);
 
@@ -206,6 +209,7 @@ public final class Metadata {
 
     /**
      * The metadata refresh backoff in ms
+     * 元数据刷新延迟时间
      */
     public long refreshBackoff() {
         return refreshBackoffMs;
@@ -221,6 +225,7 @@ public final class Metadata {
 
     /**
      * Get whether metadata for all topics is needed or not
+     * 获取是否需要所有主题的元数据
      */
     public synchronized boolean needMetadataForAllTopics() {
         return this.needMetadataForAllTopics;
@@ -228,6 +233,7 @@ public final class Metadata {
 
     /**
      * Add a Metadata listener that gets notified of metadata updates
+     * 添加获取元数据更新通知的元数据侦听器
      */
     public synchronized void addListener(Listener listener) {
         this.listeners.add(listener);

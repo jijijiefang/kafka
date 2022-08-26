@@ -12,15 +12,16 @@
  */
 package org.apache.kafka.clients.producer.internals;
 
+import org.apache.kafka.clients.producer.RecordMetadata;
+
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.apache.kafka.clients.producer.RecordMetadata;
-
 /**
  * The future result of a record send
+ * 记录发送的未来结果
  */
 public final class FutureRecordMetadata implements Future<RecordMetadata> {
 
