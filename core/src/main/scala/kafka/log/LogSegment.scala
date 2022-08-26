@@ -81,6 +81,7 @@ class LogSegment(val log: FileMessageSet,
       // append an entry to the index (if needed)
       //在.log文件中每写入4096的数据，则在.index文件中写入一条稀疏索引
       if(bytesSinceLastIndexEntry > indexIntervalBytes) {
+        //索引文件追加
         index.append(offset, log.sizeInBytes())
         this.bytesSinceLastIndexEntry = 0
       }

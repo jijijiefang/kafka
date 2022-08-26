@@ -290,6 +290,7 @@ class FileMessageSet private[kafka](@volatile var file: File,
 
   /**
    * The number of bytes taken up by this file set
+   * 此文件集占用的字节数
    */
   def sizeInBytes(): Int = _size.get()
 

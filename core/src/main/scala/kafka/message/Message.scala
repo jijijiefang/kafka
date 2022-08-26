@@ -341,6 +341,13 @@ class Message(val buffer: ByteBuffer,
     }
   }
 
+  /**
+   * Message转换为缓冲区
+   * @param toMagicValue
+   * @param byteBuffer
+   * @param now
+   * @param timestampType
+   */
   def convertToBuffer(toMagicValue: Byte,
                       byteBuffer: ByteBuffer,
                       now: Long,
@@ -348,26 +355,27 @@ class Message(val buffer: ByteBuffer,
     if (byteBuffer.remaining() < size + headerSizeDiff(magic, toMagicValue))
       throw new IndexOutOfBoundsException("The byte buffer does not have enough capacity to hold new message format " +
         s"version $toMagicValue")
+    //魔法值是1版本
     if (toMagicValue == Message.MagicValue_V1) {
-      // Up-conversion, reserve CRC and update magic byte
+      // Up-conversion, reserve CRC and update magic byte 上转换、保留CRC和更新魔字节
       byteBuffer.position(Message.MagicOffset)
       byteBuffer.put(Message.MagicValue_V1)
       byteBuffer.put(timestampType.updateAttributes(attributes))
-      // Up-conversion, insert the timestamp field
+      // Up-conversion, insert the timestamp field 上转换，插入时间戳字段
       if (timestampType == TimestampType.LOG_APPEND_TIME)
         byteBuffer.putLong(now)
       else
         byteBuffer.putLong(Message.NoTimestamp)
       byteBuffer.put(buffer.array(), buffer.arrayOffset() + Message.KeySizeOffset_V0, size - Message.KeySizeOffset_V0)
     } else {
-      // Down-conversion, reserve CRC and update magic byte
+      // Down-conversion, reserve CRC and update magic byte 下转换，保留CRC和更新魔字节
       byteBuffer.position(Message.MagicOffset)
       byteBuffer.put(Message.MagicValue_V0)
       byteBuffer.put(TimestampType.CREATE_TIME.updateAttributes(attributes))
-      // Down-conversion, skip the timestamp field
+      // Down-conversion, skip the timestamp field 下转换，跳过时间戳字段
       byteBuffer.put(buffer.array(), buffer.arrayOffset() + Message.KeySizeOffset_V1, size - Message.KeySizeOffset_V1)
     }
-    // update crc value
+    // update crc value 更新CRC值
     val newMessage = new Message(byteBuffer)
     Utils.writeUnsignedInt(byteBuffer, Message.CrcOffset, newMessage.computeChecksum)
     byteBuffer.rewind()

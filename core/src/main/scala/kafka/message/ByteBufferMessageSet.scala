@@ -413,6 +413,7 @@ class ByteBufferMessageSet(val buffer: ByteBuffer) extends MessageSet with Loggi
                                                       messageFormatVersion: Byte = Message.CurrentMagicValue,
                                                       messageTimestampType: TimestampType,
                                                       messageTimestampDiffMaxMs: Long): (ByteBufferMessageSet, Boolean) = {
+    //源编解码器不压缩且目标编解码器不不压缩
     if (sourceCodec == NoCompressionCodec && targetCodec == NoCompressionCodec) {
       // check the magic value 检查魔数
       if (!isMagicValueInAllWrapperMessages(messageFormatVersion)) {
@@ -511,15 +512,27 @@ class ByteBufferMessageSet(val buffer: ByteBuffer) extends MessageSet with Loggi
     }
   }
 
-  // We create this method to avoid a memory copy. It reads from the original message set and directly
-  // writes the converted messages into new message set buffer. Hence we don't need to allocate memory for each
-  // individual message during message format conversion.
+  // We create this method to avoid a memory copy. It reads from the original message set and directly 我们创建此方法是为了避免内存复制。
+  // writes the converted messages into new message set buffer. Hence we don't need to allocate memory for each 它从原始消息集中读取，并将转换后的消息直接写入新的消息集缓冲区。
+  // individual message during message format conversion. 因此，我们不需要在消息格式转换期间为每个单独的消息分配内存。
+
+  /**
+   * 转换非压缩消息
+   * @param offsetCounter
+   * @param compactedTopic
+   * @param now
+   * @param timestampType
+   * @param messageTimestampDiffMaxMs
+   * @param toMagicValue
+   * @return
+   */
   private def convertNonCompressedMessages(offsetCounter: LongRef,
                                            compactedTopic: Boolean,
                                            now: Long,
                                            timestampType: TimestampType,
                                            messageTimestampDiffMaxMs: Long,
                                            toMagicValue: Byte): ByteBufferMessageSet = {
+    //转换后的大小（以字节为单位）
     val sizeInBytesAfterConversion = shallowValidBytes + this.internalIterator(isShallow = true).map { messageAndOffset =>
       Message.headerSizeDiff(messageAndOffset.message.magic, toMagicValue)
     }.sum
@@ -534,6 +547,7 @@ class ByteBufferMessageSet(val buffer: ByteBuffer) extends MessageSet with Loggi
       newBuffer.putInt(newMessageSize)
       val newMessageBuffer = newBuffer.slice()
       newMessageBuffer.limit(newMessageSize)
+      //根据新的缓冲区转换Message
       message.convertToBuffer(toMagicValue, newMessageBuffer, now, timestampType)
 
       newMessagePosition += MessageSet.LogOverhead + newMessageSize

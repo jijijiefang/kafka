@@ -336,11 +336,11 @@ class Log(val dir: File,
       lock synchronized {
 
         if (assignOffsets) {
-          // assign offsets to the message set 为消息集指定偏移量
+          // assign offsets to the message set 为消息集指定偏移量，计算下一条消息的偏移量
           val offset = new LongRef(nextOffsetMetadata.messageOffset)
           appendInfo.firstOffset = offset.value
           val now = time.milliseconds
-          //ByteBufferMessageSet
+          //(ByteBufferMessageSet,Boolean)
           val (validatedMessages, messageSizesMaybeChanged) = try {
             validMessages.validateMessagesAndAssignOffsets(offset,
                                                            now,
