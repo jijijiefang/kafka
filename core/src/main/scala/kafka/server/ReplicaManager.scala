@@ -404,6 +404,7 @@ class ReplicaManager(val config: KafkaConfig,
       if (delayedRequestRequired(requiredAcks, messagesPerPartition, localProduceResults)) {
         // create delayed produce operation 创建延迟生产操作
         val produceMetadata = ProduceMetadata(requiredAcks, produceStatus)
+        //延迟生产操作
         val delayedProduce = new DelayedProduce(timeout, produceMetadata, this, responseCallback)
 
         // create a list of (topic, partition) pairs to use as keys for this delayed produce operation 创建（主题、分区）对的列表，用作此延迟生成操作的键

@@ -198,14 +198,13 @@ private class OffsetAssigner(offsets: Seq[Long]) {
 
 /**
  * A sequence of messages stored in a byte buffer
- *
+ * 存储在字节缓冲区中的消息序列
  * There are two ways to create a ByteBufferMessageSet
- *
+ * 创建 ByteBufferMessageSet 有两种方法
  * Option 1: From a ByteBuffer which already contains the serialized message set. Consumers will use this method.
- *
+ * 选项 1：来自已包含序列化消息集的 ByteBuffer。消费者将使用这种方法。
  * Option 2: Give it a list of messages along with instructions relating to serialization format. Producers will use this method.
- *
- *
+ * 选项 2：给它一个消息列表以及与序列化格式相关的说明。生产者将使用这种方法。
  * Message format v1 has the following changes:
  * - For non-compressed messages, timestamp and timestamp type attributes have been added. The offsets of
  *   the messages remain absolute offsets.

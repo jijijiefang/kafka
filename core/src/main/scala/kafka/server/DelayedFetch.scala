@@ -27,6 +27,11 @@ import org.apache.kafka.common.errors.{NotLeaderForPartitionException, UnknownTo
 
 import scala.collection._
 
+/**
+ * 拉取分区状态
+ * @param startOffsetMetadata 起始偏移元数据
+ * @param fetchInfo 分区拉取信息
+ */
 case class FetchPartitionStatus(startOffsetMetadata: LogOffsetMetadata, fetchInfo: PartitionFetchInfo) {
 
   override def toString = "[startOffsetMetadata: " + startOffsetMetadata + ", " +

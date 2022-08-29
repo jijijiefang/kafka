@@ -31,19 +31,21 @@ import scala.collection._
 
 /**
  * 消息生产分区状态
- * @param requiredOffset
- * @param responseStatus
+ * @param requiredOffset 所需的偏移量
+ * @param responseStatus 分区响应
  */
 case class ProducePartitionStatus(requiredOffset: Long, responseStatus: PartitionResponse) {
+  //acks阻塞
   @volatile var acksPending = false
 
   override def toString = "[acksPending: %b, error: %d, startOffset: %d, requiredOffset: %d]"
     .format(acksPending, responseStatus.errorCode, responseStatus.baseOffset, requiredOffset)
 }
-
 /**
  * The produce metadata maintained by the delayed produce operation
  * 由延迟的生产操作维护的生产元数据
+ * @param produceRequiredAcks 生产所需的ACKS
+ * @param produceStatus
  */
 case class ProduceMetadata(produceRequiredAcks: Short,
                            produceStatus: Map[TopicPartition, ProducePartitionStatus]) {

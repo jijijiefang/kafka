@@ -295,7 +295,8 @@ class FileMessageSet private[kafka](@volatile var file: File,
   def sizeInBytes(): Int = _size.get()
 
   /**
-   * Append these messages to the message set 追加消息至消息集
+   * Append these messages to the message set
+   * 追加消息至消息集
    */
   def append(messages: ByteBufferMessageSet) {
     //channel对应.log磁盘文件的mmap的FileChannel
@@ -304,7 +305,8 @@ class FileMessageSet private[kafka](@volatile var file: File,
   }
 
   /**
-   * Commit all written data to the physical disk 将所有写入的数据提交到物理磁盘
+   * Commit all written data to the physical disk
+   * 将所有写入的数据提交到物理磁盘
    */
   def flush() = {
     channel.force(true)

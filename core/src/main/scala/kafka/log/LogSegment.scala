@@ -251,7 +251,8 @@ class LogSegment(val log: FileMessageSet,
   }
 
   /**
-   * Flush this log segment to disk 将此日志段刷新到磁盘
+   * Flush this log segment to disk
+   * 将此日志段刷新到磁盘
    */
   @threadsafe
   def flush() {

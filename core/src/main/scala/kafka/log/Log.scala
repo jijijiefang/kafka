@@ -643,8 +643,8 @@ class Log(val dir: File,
   }
 
   /**
-   * Roll the log over to a new active segment starting with the current logEndOffset.
-   * This will trim the index to the exact size of the number of entries it currently contains.
+   * Roll the log over to a new active segment starting with the current logEndOffset. 将日志滚动到从当前 logEndOffset 开始的新活动段
+   * This will trim the index to the exact size of the number of entries it currently contains. 这会将索引修剪为其当前包含的条目数的确切大小
    * @return The newly rolled segment
    */
   def roll(): LogSegment = {
@@ -695,12 +695,14 @@ class Log(val dir: File,
   def unflushedMessages() = this.logEndOffset - this.recoveryPoint
 
   /**
-   * Flush all log segments 刷新所有日志段
+   * Flush all log segments
+   * 刷新所有日志段
    */
   def flush(): Unit = flush(this.logEndOffset)
 
   /**
-   * Flush log segments for all offsets up to offset-1 刷新所有偏移量的日志段，直到偏移量-1
+   * Flush log segments for all offsets up to offset-1
+   * 刷新所有偏移量的日志段，直到偏移量-1
    * @param offset The offset to flush up to (non-inclusive); the new recovery point
    */
   def flush(offset: Long) : Unit = {
