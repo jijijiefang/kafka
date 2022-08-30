@@ -396,7 +396,7 @@ class Log(val dir: File,
 
         trace("Appended message set to log %s with first offset: %d, next offset: %d, and messages: %s"
           .format(this.name, appendInfo.firstOffset, nextOffsetMetadata.messageOffset, validMessages))
-        //每写入多少条数据，刷盘到磁盘
+        //每写入多少条数据，刷盘到磁盘,默认值为Long.MaxValue,默认不会调用
         if (unflushedMessages >= config.flushInterval)
           flush()
 
@@ -691,6 +691,7 @@ class Log(val dir: File,
 
   /**
    * The number of messages appended to the log since the last flush
+   * 自上次刷新以来附加到日志的消息数
    */
   def unflushedMessages() = this.logEndOffset - this.recoveryPoint
 

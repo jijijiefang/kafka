@@ -44,15 +44,20 @@ class Partition(val topic: String,
                 val partitionId: Int,
                 time: Time,
                 replicaManager: ReplicaManager) extends Logging with KafkaMetricsGroup {
+  //当前BrokerID
   private val localBrokerId = replicaManager.config.brokerId
   private val logManager = replicaManager.logManager
   private val zkUtils = replicaManager.zkUtils
+  //分配的副本Map
   private val assignedReplicaMap = new Pool[Int, Replica]
   // The read lock is only required when multiple reads are executed and needs to be in a consistent manner 只有在执行多次读取时才需要读锁，并且需要以一致的方式进行
   private val leaderIsrUpdateLock = new ReentrantReadWriteLock()
   private var zkVersion: Int = LeaderAndIsr.initialZKVersion
+  //领导者纪元
   @volatile private var leaderEpoch: Int = LeaderAndIsr.initialLeaderEpoch - 1
+  //领导者副本ID容器
   @volatile var leaderReplicaIdOpt: Option[Int] = None
+  //ISR列表
   @volatile var inSyncReplicas: Set[Replica] = Set.empty[Replica]
 
   /* Epoch of the controller that last changed the leader. This needs to be initialized correctly upon broker startup.
@@ -119,6 +124,7 @@ class Partition(val topic: String,
   def leaderReplicaIfLocal(): Option[Replica] = {
     leaderReplicaIdOpt match {
       case Some(leaderReplicaId) =>
+        //如果当前主题分区副本的ID等于当前BrokerID
         if (leaderReplicaId == localBrokerId)
           getReplica(localBrokerId)
         else
@@ -477,10 +483,12 @@ class Partition(val topic: String,
    * @return
    */
   def appendMessagesToLeader(messages: ByteBufferMessageSet, requiredAcks: Int = 0) = {
+    //Leader更新ISR读锁
     val (info, leaderHWIncremented) = inReadLock(leaderIsrUpdateLock) {
+      //当前主题分区副本是Leader
       val leaderReplicaOpt = leaderReplicaIfLocal()
       leaderReplicaOpt match {
-        //判断当前Partition是否是Leader
+        //判断当前副本是否是Leader
         case Some(leaderReplica) =>
           val log = leaderReplica.log.get
           //ISR最少数量配置
