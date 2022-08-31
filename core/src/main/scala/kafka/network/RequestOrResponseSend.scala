@@ -24,9 +24,19 @@ import kafka.api.RequestOrResponse
 import kafka.utils.Logging
 import org.apache.kafka.common.network.NetworkSend
 
+/**
+ * 请求响应发送报文
+ */
 object RequestOrResponseSend {
+  /**
+   * 序列化
+   * @param request
+   * @return
+   */
   def serialize(request: RequestOrResponse): ByteBuffer = {
+    //
     val buffer = ByteBuffer.allocate(request.sizeInBytes + (if(request.requestId != None) 2 else 0))
+    //请求requestId不为空
     request.requestId match {
       case Some(requestId) =>
         buffer.putShort(requestId)

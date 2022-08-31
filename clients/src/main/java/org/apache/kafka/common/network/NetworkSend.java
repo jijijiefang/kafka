@@ -28,9 +28,15 @@ public class NetworkSend extends ByteBufferSend {
         super(destination, sizeDelimit(buffers));
     }
 
+    /**
+     * 大小定界
+     * @param buffers
+     * @return
+     */
     private static ByteBuffer[] sizeDelimit(ByteBuffer[] buffers) {
         int size = 0;
         for (int i = 0; i < buffers.length; i++)
+            //累计buffers总容量
             size += buffers[i].remaining();
         ByteBuffer[] delimited = new ByteBuffer[buffers.length + 1];
         //字节缓冲区数组索引为0的字节缓冲区存放的是buffers总容量大小
