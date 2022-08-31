@@ -35,6 +35,7 @@ import com.yammer.metrics.core.Gauge
 import org.apache.kafka.common.utils.Utils
 
 object LogAppendInfo {
+  //未知的日志附加信息对象
   val UnknownLogAppendInfo = LogAppendInfo(-1, -1, Message.NoTimestamp, NoCompressionCodec, NoCompressionCodec, -1, -1, false)
 }
 
