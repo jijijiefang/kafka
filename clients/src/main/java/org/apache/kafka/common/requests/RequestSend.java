@@ -39,7 +39,7 @@ public class RequestSend extends NetworkSend {
      * @return
      */
     public static ByteBuffer serialize(RequestHeader header, Struct body) {
-        //缓冲区分配空间为请求头长度+请求体长度
+        //缓冲区分配空间容量为请求头长度+请求体长度
         ByteBuffer buffer = ByteBuffer.allocate(header.sizeOf() + body.sizeOf());
         header.writeTo(buffer);
         body.writeTo(buffer);
