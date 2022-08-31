@@ -30,6 +30,7 @@ public class NetworkReceive implements Receive {
     private final String source;
     //存放消息长度
     private final ByteBuffer size;
+    //最大读取长度，默认不限制为-1
     private final int maxSize;
     //存放消息体
     private ByteBuffer buffer;
@@ -85,7 +86,7 @@ public class NetworkReceive implements Receive {
     @Deprecated
     public long readFromReadableChannel(ReadableByteChannel channel) throws IOException {
         int read = 0;
-        //从SocketChannel中读取到size缓冲区，如果size缓冲区满了，则可以获取到消息体长度
+        //从SocketChannel中读取到size缓冲区，如果size缓冲区满了，则可以获取到消息体长度，根据消息长度分配对应长度缓冲区
         if (size.hasRemaining()) {
             int bytesRead = channel.read(size);
             if (bytesRead < 0)

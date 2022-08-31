@@ -79,14 +79,24 @@ public class KafkaChannel {
         return id;
     }
 
+    /**
+     * 移除读事件键
+     */
     public void mute() {
         transportLayer.removeInterestOps(SelectionKey.OP_READ);
     }
 
+    /**
+     * 关注读事件键
+     */
     public void unmute() {
         transportLayer.addInterestOps(SelectionKey.OP_READ);
     }
 
+    /**
+     * 是否不可读
+     * @return true 不可读 false 可读
+     */
     public boolean isMute() {
         return transportLayer.isMute();
     }
@@ -134,8 +144,9 @@ public class KafkaChannel {
      * @throws IOException
      */
     public NetworkReceive read() throws IOException {
+        //没有读取完全时，返回的是null,继续进行读取
         NetworkReceive result = null;
-        //接收缓冲区
+        //接收缓冲区，每次接收一个请求完毕置空
         if (receive == null) {
             receive = new NetworkReceive(maxReceiveSize, id);
         }
@@ -144,6 +155,7 @@ public class KafkaChannel {
         //完全读取完毕
         if (receive.complete()) {
             receive.payload().rewind();
+            //读取完全返回
             result = receive;
             receive = null;
         }

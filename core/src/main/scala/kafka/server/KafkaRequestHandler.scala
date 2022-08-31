@@ -90,7 +90,7 @@ class KafkaRequestHandlerPool(val brokerId: Int,
   //KafkaRequestHandler数组
   val runnables = new Array[KafkaRequestHandler](numThreads)
   for(i <- 0 until numThreads) {
-    //Kafka请求处理类
+    //Kafka请求处理线程
     runnables(i) = new KafkaRequestHandler(i, brokerId, aggregateIdleMeter, numThreads, requestChannel, apis)
     //设置守护线程
     threads(i) = Utils.daemonThread("kafka-request-handler-" + i, runnables(i))

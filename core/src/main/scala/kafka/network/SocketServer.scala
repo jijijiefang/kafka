@@ -530,10 +530,11 @@ private[kafka] class Processor(val id: Int,
         //会话
         val session = RequestChannel.Session(new KafkaPrincipal(KafkaPrincipal.USER_TYPE, channel.principal.getName),
           channel.socketAddress)
-        //请求
+        //进行反序列化，Buffer->请求
         val req = RequestChannel.Request(processor = id, connectionId = receive.source, session = session, buffer = receive.payload, startTimeMs = time.milliseconds, securityProtocol = protocol)
-        //请求放入请求队列
+        //请求放入请求队列,requestQueue.put(request)
         requestChannel.sendRequest(req)
+        //静音此SocketChannel
         selector.mute(receive.source)
       } catch {
         case e @ (_: InvalidRequestException | _: SchemaException) =>

@@ -333,8 +333,9 @@ public class Selector implements Selectable {
                 /* if channel is ready read from any connections that have readable data *///通道已就绪，有可读数据
                 if (channel.ready() && key.isReadable() && !hasStagedReceive(channel)) {
                     NetworkReceive networkReceive;
-                    //从SocketChannel读取数据，处理粘包
+                    //从SocketChannel读取数据，处理粘包，channel.read()返回空说明没有读取完毕，需要继续读取
                     while ((networkReceive = channel.read()) != null)
+                        //networkReceive不为空说明此请求已读取完毕
                         addToStagedReceives(channel, networkReceive);
                 }
 
@@ -534,6 +535,7 @@ public class Selector implements Selectable {
 
     /**
      * Check if given channel has a staged receive
+     * 检查给定频道是否有分阶段接收
      */
     private boolean hasStagedReceive(KafkaChannel channel) {
         return stagedReceives.containsKey(channel);
@@ -574,6 +576,7 @@ public class Selector implements Selectable {
             while (iter.hasNext()) {
                 Map.Entry<KafkaChannel, Deque<NetworkReceive>> entry = iter.next();
                 KafkaChannel channel = entry.getKey();
+                //是否不可读，true 不可读 false 可读
                 if (!channel.isMute()) {
                     Deque<NetworkReceive> deque = entry.getValue();
                     NetworkReceive networkReceive = deque.poll();

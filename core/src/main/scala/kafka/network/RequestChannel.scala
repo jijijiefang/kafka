@@ -45,6 +45,15 @@ object RequestChannel extends Logging {
 
   case class Session(principal: KafkaPrincipal, clientAddress: InetAddress)
 
+  /**
+   * 将Buffer转换为请求或响应
+   * @param processor
+   * @param connectionId
+   * @param session
+   * @param buffer
+   * @param startTimeMs
+   * @param securityProtocol
+   */
   case class Request(processor: Int, connectionId: String, session: Session, private var buffer: ByteBuffer, startTimeMs: Long, securityProtocol: SecurityProtocol) {
     // These need to be volatile because the readers are in the network thread and the writers are in the request
     // handler threads or the purgatory threads 这些需要是volatile，因为阅读者在网络线程中，而写入者在请求处理程序线程或炼狱线程中
@@ -57,10 +66,11 @@ object RequestChannel extends Logging {
     val requestId = buffer.getShort()
 
     // TODO: this will be removed once we migrated to client-side format
-    // for server-side request / response format
+    // for server-side request / response format 用于服务器端请求响应格式
     // NOTE: this map only includes the server-side request/response handlers. Newer
     // request types should only use the client-side versions which are parsed with
     // o.a.k.common.requests.AbstractRequest.getRequest()
+    //名称和反序列化器Map,{名称:反序列化器}
     private val keyToNameAndDeserializerMap: Map[Short, (ByteBuffer) => RequestOrResponse]=
       Map(ApiKeys.FETCH.id -> FetchRequest.readFrom,
         ApiKeys.CONTROLLED_SHUTDOWN_KEY.id -> ControlledShutdownRequest.readFrom
@@ -185,7 +195,7 @@ class RequestChannel(val numProcessors: Int, val queueSize: Int) extends KafkaMe
   private var responseListeners: List[(Int) => Unit] = Nil
   //请求队列
   private val requestQueue = new ArrayBlockingQueue[RequestChannel.Request](queueSize)
-  //响应队列数组，为处理器数量
+  //响应队列数组，为Processor线程数量
   private val responseQueues = new Array[BlockingQueue[RequestChannel.Response]](numProcessors)
   //为每一个处理器，新建一个响应队列
   for(i <- 0 until numProcessors)
