@@ -39,6 +39,9 @@ import org.apache.zookeeper.{CreateMode, KeeperException, ZooDefs, ZooKeeper}
 
 import scala.collection._
 
+/**
+ * ZK工具类
+ */
 object ZkUtils {
   val ConsumersPath = "/consumers"
   val BrokerIdsPath = "/brokers/ids"
@@ -883,11 +886,19 @@ private object ZKStringSerializer extends ZkSerializer {
   }
 }
 
+/**
+ * ZK消费组路径
+ * @param group
+ */
 class ZKGroupDirs(val group: String) {
   def consumerDir = ConsumersPath
+  //消费者路径
   def consumerGroupDir = consumerDir + "/" + group
+  //消费组内的消费者注册路径
   def consumerRegistryDir = consumerGroupDir + "/ids"
+  ///消费组内的消费者偏移量路径
   def consumerGroupOffsetsDir = consumerGroupDir + "/offsets"
+  //消费组内的拥有者
   def consumerGroupOwnersDir = consumerGroupDir + "/owners"
 }
 

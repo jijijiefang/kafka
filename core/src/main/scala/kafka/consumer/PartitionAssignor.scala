@@ -29,7 +29,7 @@ import scala.collection.mutable
 trait PartitionAssignor {
 
   /**
-   * Assigns partitions to consumer instances in a group.
+   * Assigns partitions to consumer instances in a group. 将分区分配给组中的使用者实例
    * @return An assignment map of partition to this consumer group. This includes assignments for threads that belong
    *         to the same consumer group.
    */
@@ -44,8 +44,17 @@ object PartitionAssignor {
   }
 }
 
+/**
+ * 主题分区分配上下文
+ * @param group 消费组
+ * @param consumerId 消费者
+ * @param excludeInternalTopics 是否排除内部主题
+ * @param zkUtils ZK工具类
+ */
 class AssignmentContext(group: String, val consumerId: String, excludeInternalTopics: Boolean, zkUtils: ZkUtils) {
+  //主题对应消费线程{主题:消费线程集合}
   val myTopicThreadIds: collection.Map[String, collection.Set[ConsumerThreadId]] = {
+    //
     val myTopicCount = TopicCount.constructTopicCount(group, consumerId, zkUtils, excludeInternalTopics)
     myTopicCount.getConsumerThreadIdsPerTopic
   }
@@ -70,7 +79,6 @@ class AssignmentContext(group: String, val consumerId: String, excludeInternalTo
  * a) Every topic has the same number of streams within a consumer instance
  * b) The set of subscribed topics is identical for every consumer instance within the group.
  */
-
 class RoundRobinAssignor() extends PartitionAssignor with Logging {
 
   def assign(ctx: AssignmentContext) = {
@@ -130,6 +138,12 @@ class RoundRobinAssignor() extends PartitionAssignor with Logging {
  * and C2 with two streams each, and there are five available partitions (p0, p1, p2, p3, p4). So each consumer thread
  * will get at least one partition and the first consumer thread will get one extra partition. So the assignment will be:
  * p0 -> C1-0, p1 -> C1-0, p2 -> C1-1, p3 -> C2-0, p4 -> C2-1
+ * 范围分区在每个主题的基础上工作。对于每个主题，我们按数字顺序排列可用分区，并按字典顺序排列消费者线程。
+ * 然后，我们将分区数除以消费者流（线程）的总数，以确定分配给每个消费者的分区数。
+ * 如果不均匀划分，那么前几个消费者将有一个额外的分区。
+ * 例如，假设有两个消费者 C1 和 C2，每个消费者有两个流，并且有五个可用分区（p0、p1、p2、p3、p4）。
+ * 因此，每个消费者线程将至少获得一个分区，而第一个消费者线程将获得一个额外的分区。
+ * 所以分配将是：p0 -> C1-0, p1 -> C1-0, p2 -> C1-1, p3 -> C2-0, p4 -> C2-1
  * 消费分区策略为-范围分区
  */
 class RangeAssignor() extends PartitionAssignor with Logging {

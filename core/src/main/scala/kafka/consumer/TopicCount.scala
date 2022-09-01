@@ -22,6 +22,9 @@ import org.I0Itec.zkclient.ZkClient
 import kafka.utils.{Json, ZKGroupDirs, ZkUtils, Logging, CoreUtils}
 import kafka.common.KafkaException
 
+/**
+ * 主题计数接口
+ */
 private[kafka] trait TopicCount {
 
   def getConsumerThreadIdsPerTopic: Map[String, Set[ConsumerThreadId]]
@@ -43,6 +46,12 @@ private[kafka] object TopicCount extends Logging {
 
   def makeThreadId(consumerIdString: String, threadId: Int) = consumerIdString + "-" + threadId
 
+  /**
+   * 为每个主题设置对应消费线程
+   * @param consumerIdString
+   * @param topicCountMap
+   * @return
+   */
   def makeConsumerThreadIdsPerTopic(consumerIdString: String,
                                     topicCountMap: Map[String,  Int]) = {
     val consumerThreadIdsPerTopicMap = new mutable.HashMap[String, Set[ConsumerThreadId]]()
@@ -56,20 +65,32 @@ private[kafka] object TopicCount extends Logging {
     consumerThreadIdsPerTopicMap
   }
 
+  /**
+   * 构建主题计数
+   * @param group
+   * @param consumerId
+   * @param zkUtils
+   * @param excludeInternalTopics
+   * @return
+   */
   def constructTopicCount(group: String, consumerId: String, zkUtils: ZkUtils, excludeInternalTopics: Boolean) : TopicCount = {
+    //消费组路径
     val dirs = new ZKGroupDirs(group)
+    //消费组内消费者数量
     val topicCountString = zkUtils.readData(dirs.consumerRegistryDir + "/" + consumerId)._1
     var subscriptionPattern: String = null
     var topMap: Map[String, Int] = null
     try {
       Json.parseFull(topicCountString) match {
         case Some(m) =>
+          //消费者注册Map
           val consumerRegistrationMap = m.asInstanceOf[Map[String, Any]]
           consumerRegistrationMap.get("pattern") match {
             case Some(pattern) => subscriptionPattern = pattern.asInstanceOf[String]
             case None => throw new KafkaException("error constructing TopicCount : " + topicCountString)
           }
           consumerRegistrationMap.get("subscription") match {
+            //
             case Some(sub) => topMap = sub.asInstanceOf[Map[String, Int]]
             case None => throw new KafkaException("error constructing TopicCount : " + topicCountString)
           }
@@ -80,10 +101,11 @@ private[kafka] object TopicCount extends Logging {
         error("error parsing consumer json string " + topicCountString, e)
         throw e
     }
-
+    //白名单
     val hasWhiteList = whiteListPattern.equals(subscriptionPattern)
+    //黑名单
     val hasBlackList = blackListPattern.equals(subscriptionPattern)
-
+    //消费者Map为空
     if (topMap.isEmpty || !(hasWhiteList || hasBlackList)) {
       new StaticTopicCount(consumerId, topMap)
     } else {
@@ -106,6 +128,11 @@ private[kafka] object TopicCount extends Logging {
 
 }
 
+/**
+ * 静态主题计数
+ * @param consumerIdString
+ * @param topicCountMap
+ */
 private[kafka] class StaticTopicCount(val consumerIdString: String,
                                 val topicCountMap: Map[String, Int])
                                 extends TopicCount {
@@ -125,6 +152,14 @@ private[kafka] class StaticTopicCount(val consumerIdString: String,
   def pattern = TopicCount.staticPattern
 }
 
+/**
+ * 通配符主题计数
+ * @param zkUtils
+ * @param consumerIdString
+ * @param topicFilter
+ * @param numStreams
+ * @param excludeInternalTopics
+ */
 private[kafka] class WildcardTopicCount(zkUtils: ZkUtils,
                                         consumerIdString: String,
                                         topicFilter: TopicFilter,
